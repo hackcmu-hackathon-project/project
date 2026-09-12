@@ -167,14 +167,17 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
 
   // ---------- Add a place ----------
   if (step === 'new') {
-    const ready = draft.title.trim().length > 2 && draft.hood.trim().length > 1;
+    const ready =
+      draft.title.trim().length > 2 && draft.hood.trim().length > 1 && draft.address.trim().length > 2;
     const missing = !draft.title.trim().length
       ? 'Give it a name'
       : draft.title.trim().length <= 2
         ? 'That name is a bit short'
         : !draft.hood
           ? 'Pick a neighborhood'
-          : '';
+          : draft.address.trim().length <= 2
+            ? 'Add an address or cross streets'
+            : '';
     const field = (
       label: string,
       key: 'title' | 'hood' | 'address' | 'note' | 'tip' | 'bestTime',
@@ -256,7 +259,10 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
               </ScrollView>
             </View>
           ) : null}
-          {field('Address or cross streets (optional)', 'address', '18th & Dolores')}
+          {field('Address or cross streets', 'address', '18th & Dolores')}
+          <T s="soft" size={12} style={{ marginTop: -8, marginBottom: 14, color: colors.faint, lineHeight: 17 }}>
+            This is how trips route to it, so it has to be somewhere a map can find.
+          </T>
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Kind of thing</Eyebrow>
           <Row style={{ flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
             {CATEGORIES.map((c) => (
@@ -301,7 +307,9 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                 setNewId(created.id);
                 setStep('tier');
               } catch (e: any) {
-                setError('Could not add it — is the API running?');
+                const detail = String(e?.message ?? '');
+                const match = detail.match(/\{"detail":"([^"]+)"/);
+                setError(match ? match[1] : 'Could not add it — is the API running?');
               } finally {
                 setBusy(false);
               }

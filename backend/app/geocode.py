@@ -22,25 +22,46 @@ VIEWBOX = {
 
 async def locate(address: str, city: str) -> tuple[float, float] | None:
     """Coordinates for a free-text address, or None if it can't be placed."""
-    if not address.strip():
+    address = address.strip()
+    if not address:
         return None
-    params = {
-        "q": f"{address}, {CITY_NAMES.get(city, '')}",
-        "format": "json",
-        "limit": 1,
-        "viewbox": VIEWBOX.get(city, ""),
-        "bounded": 1,
-    }
-    try:
-        async with httpx.AsyncClient(timeout=12, headers={"User-Agent": UA}) as client:
-            response = await client.get(ENDPOINT, params=params)
-            response.raise_for_status()
-            hits = response.json()
-    except (httpx.HTTPError, ValueError):
-        return None
-    if not hits:
-        return None
-    try:
-        return float(hits[0]["lat"]), float(hits[0]["lon"])
-    except (KeyError, TypeError, ValueError):
-        return None
+
+    name = CITY_NAMES.get(city, "")
+    # Don't say "New York" twice: Nominatim reads the repetition as a different
+    # place and finds nothing.
+    query = address if name.lower() in address.lower() else f"{address}, {name}"
+
+    attempts = [
+        # Inside the city box first, then let it look wider, then drop any
+        # street number, which is the part most likely to be wrong.
+        {"q": query, "viewbox": VIEWBOX.get(city, ""), "bounded": 1},
+        {"q": query},
+        {"q": f"{address.split(',')[0]}, {name}"},
+    ]
+
+    async with httpx.AsyncClient(timeout=12, headers={"User-Agent": UA}) as client:
+        for extra in attempts:
+            try:
+                response = await client.get(ENDPOINT, params={"format": "json", "limit": 1, **extra})
+                response.raise_for_status()
+                hits = response.json()
+            except (httpx.HTTPError, ValueError):
+                continue
+            if not hits:
+                continue
+            try:
+                lat, lon = float(hits[0]["lat"]), float(hits[0]["lon"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if _inside(city, lat, lon):
+                return lat, lon
+    return None
+
+
+def _inside(city: str, lat: float, lon: float) -> bool:
+    """A wider search can wander; keep it in the city we asked about."""
+    box = VIEWBOX.get(city)
+    if not box:
+        return True
+    west, south, east, north = (float(v) for v in box.split(","))
+    return south <= lat <= north and west <= lon <= east

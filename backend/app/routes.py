@@ -305,12 +305,16 @@ async def create_item(
         "created_by": user.sub,
         "created_at": _now(),
     }
-    # An address is worth coordinates: it makes the Maps route land on the spot
-    # rather than on a name search.
-    if doc.get("address"):
-        found = await geocode.locate(doc["address"], doc["city"])
-        if found:
-            doc["lat"], doc["lon"] = found
+    # A place nobody can route to is barely a place. Insist on an address and
+    # insist it resolves, rather than storing something a trip can't use.
+    found = await geocode.locate(doc.get("address", ""), doc["city"])
+    if not found:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Couldn't find “{doc.get('address') or 'that address'}” in {CITY_NAMES[doc['city']]}. "
+            "Try a street address or a nearby cross street.",
+        )
+    doc["lat"], doc["lon"] = found
 
     photo = await photos.find_photo(photos.photo_query_for(doc))
     if photo:

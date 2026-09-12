@@ -24,7 +24,8 @@
       "img": "photo: the ruins",
       "seed_tier": "loved",
       "seed_score": 9.4,
-      "photo_query": "Sutro Baths ruins San Francisco"
+      "photo_query": "Sutro Baths ruins San Francisco",
+      "address": "Sutro Baths, San Francisco"
     },
     {
       "id": 4,
@@ -45,7 +46,8 @@
       "img": "photo: the slope",
       "seed_tier": "liked",
       "seed_score": 7.6,
-      "photo_query": "Dolores Park San Francisco"
+      "photo_query": "Dolores Park San Francisco",
+      "address": "Mission Dolores Park, San Francisco"
     },
     {
       "id": 7,
@@ -66,7 +68,8 @@
       "img": "photo: a glider",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "Fort Funston hang glider"
+      "photo_query": "Fort Funston hang glider",
+      "address": "Fort Funston, San Francisco"
     },
     {
       "id": 8,
@@ -87,7 +90,10 @@
       "img": "photo: bison",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "American bison Golden Gate Park"
+      "photo_query": "American bison Golden Gate Park",
+      "address": "Bison Paddock, Golden Gate Park, San Francisco",
+      "lat": 37.77,
+      "lon": -122.4914
     },
     {
       "id": 12,
@@ -108,7 +114,10 @@
       "img": "photo: the car",
       "seed_tier": "okay",
       "seed_score": 4.2,
-      "photo_query": "Powell Hyde cable car San Francisco"
+      "photo_query": "Powell Hyde cable car San Francisco",
+      "address": "Powell-Hyde cable car turnaround, Hyde St & Beach St, San Francisco",
+      "lat": 37.806,
+      "lon": -122.4213
     },
     {
       "id": 13,
@@ -129,7 +138,8 @@
       "img": "photo: the terrace",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "SFMOMA San Francisco museum"
+      "photo_query": "SFMOMA San Francisco museum",
+      "address": "San Francisco Museum of Modern Art, 151 3rd St, San Francisco"
     },
     {
       "id": 14,
@@ -150,7 +160,8 @@
       "img": "photo: the trail",
       "seed_tier": "loved",
       "seed_score": 9.0,
-      "photo_query": "Lands End Coastal Trail San Francisco"
+      "photo_query": "Lands End Coastal Trail San Francisco",
+      "address": "Lands End Lookout, San Francisco"
     },
     {
       "id": 15,
@@ -171,7 +182,8 @@
       "img": "photo: bridge at dawn",
       "seed_tier": "loved",
       "seed_score": 9.1,
-      "photo_query": "Brooklyn Bridge dawn"
+      "photo_query": "Brooklyn Bridge dawn",
+      "address": "Brooklyn Bridge, New York"
     },
     {
       "id": 17,
@@ -192,7 +204,8 @@
       "img": "photo: the roof",
       "seed_tier": "loved",
       "seed_score": 8.5,
-      "photo_query": "Metropolitan Museum of Art roof garden"
+      "photo_query": "Metropolitan Museum of Art roof garden",
+      "address": "Metropolitan Museum of Art, New York"
     },
     {
       "id": 19,
@@ -213,7 +226,8 @@
       "img": "photo: the room",
       "seed_tier": "liked",
       "seed_score": 7.2,
-      "photo_query": "Village Vanguard jazz club"
+      "photo_query": "Village Vanguard jazz club",
+      "address": "Village Vanguard, 178 7th Ave S, New York"
     },
     {
       "id": 20,
@@ -234,7 +248,8 @@
       "img": "photo: the harbor",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "Staten Island Ferry sunset"
+      "photo_query": "Staten Island Ferry sunset",
+      "address": "Staten Island Ferry Whitehall Terminal, New York"
     },
     {
       "id": 21,
@@ -255,7 +270,8 @@
       "img": "photo: the cellar sign",
       "seed_tier": "liked",
       "seed_score": 6.9,
-      "photo_query": "Comedy Cellar New York"
+      "photo_query": "Comedy Cellar New York",
+      "address": "Comedy Cellar, 117 MacDougal St, New York"
     },
     {
       "id": 22,
@@ -276,7 +292,10 @@
       "img": "photo: the woods",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "Central Park Ramble"
+      "photo_query": "Central Park Ramble",
+      "address": "The Ramble, Central Park, New York",
+      "lat": 40.7775,
+      "lon": -73.97
     },
     {
       "id": 24,
@@ -297,7 +316,8 @@
       "img": "photo: the tram",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "Roosevelt Island Tram"
+      "photo_query": "Roosevelt Island Tram",
+      "address": "Roosevelt Island Tramway, E 59th St, New York"
     },
     {
       "id": 25,
@@ -318,7 +338,10 @@
       "img": "photo: the stacks",
       "seed_tier": null,
       "seed_score": null,
-      "photo_query": "Strand Book Store New York"
+      "photo_query": "Strand Book Store New York",
+      "address": "Strand Book Store, 828 Broadway, New York",
+      "lat": 40.7334,
+      "lon": -73.991
     },
     {
       "id": 26,
@@ -339,7 +362,8 @@
       "img": "photo: the steps",
       "seed_tier": "okay",
       "seed_score": 4.6,
-      "photo_query": "Domino Park Williamsburg"
+      "photo_query": "Domino Park Williamsburg",
+      "address": "Domino Park, Brooklyn, New York"
     }
   ]
 }

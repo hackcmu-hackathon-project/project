@@ -262,11 +262,15 @@ and the rest imported.
   filters and trims each city to its depth, keeping the best-known. Runs of the
   importer only ever add, so this is how a rule change takes effect. Anything
   somebody has ranked or saved is never removed.
+* `python backfill_coords.py` — geocodes anything without coordinates, so every
+  place can be routed to. Every place in the catalogue has them.
 * `python fetch_photos.py` — fills in photos for anything still missing one,
   from [Openverse](https://openverse.org) (openly licensed, no API key). Credit
   and license travel with the URL and are shown on the detail screen.
 * Anything missing, you add in the app: **＋ → Add a new place** writes to the
-  catalogue for everyone and resolves a photo on the way in — or you pick your
+  catalogue for everyone. It asks for a neighborhood from a list and an address,
+  which it geocodes through OpenStreetMap — a place that can't be found on a map
+  is refused rather than saved as something no trip can route to and resolves a photo on the way in — or you pick your
   own from the camera roll, which is also how you replace a bad photo on any
   existing place (**a place → Use your own photo instead**).
 

@@ -55,7 +55,8 @@ class ItemCreate(BaseModel):
     city: City
     title: str = Field(min_length=3, max_length=120)
     hood: str = Field(min_length=2, max_length=80)
-    address: str = Field("", max_length=200)
+    #: Required: it's how a trip routes to the place.
+    address: str = Field(min_length=3, max_length=200)
     category: Category = "Culture"
     duration_min: int = 60
     price: int = Field(0, ge=0, le=3)
