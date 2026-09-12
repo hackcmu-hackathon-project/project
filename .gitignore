@@ -2,10 +2,14 @@ node_modules/
 .expo/
 dist/
 web-build/
-.env
+# .env and backend/.env are committed on purpose: this repo is private, and the
+# values in them (Auth0 domain, public client id, a localhost Mongo URI) are not
+# secrets — the client id ships inside the app bundle either way. Anything that
+# IS a secret — an Atlas URI with a password, an Auth0 client secret — belongs in
+# .env.local, which stays ignored.
 .env.local
+.env.production
 server/node_modules/
-server/.env
 *.log
 .DS_Store
 backend/.venv/

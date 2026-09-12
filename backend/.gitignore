@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
-.env
+.env.local
+.env.production
 .wiki_cache.json
