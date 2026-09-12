@@ -27,6 +27,13 @@ export const font = {
 
 export const radius = { sm: 10, md: 12, lg: 14, xl: 16, xxl: 20, pill: 999 };
 
+/**
+ * The fixed category list. Rove is about things to *do* — restaurants and bars
+ * are Beli's territory, so there is deliberately no Food or Drink.
+ * Must match CATEGORIES in backend/app/models.py.
+ */
+export const CATEGORIES = ['Outdoors', 'Culture', 'Landmark', 'Music', 'Nightlife', 'Sports', 'Shop'] as const;
+
 /** Tier score bands, matching the Rove ranking model. */
 export const TIERS = {
   loved: { label: 'Loved it', range: [8, 10] as [number, number], hint: '8 – 10' },

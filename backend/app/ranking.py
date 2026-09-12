@@ -72,6 +72,9 @@ async def _commit(db: AsyncIOMotorDatabase, sub: str, item: Item, tier: str, pos
         ]
     )
 
+    # Having been somewhere retires it from "want to go".
+    await db.saves.delete_one({"_id": f"{sub}#{item.id}"})
+
     city_rows = await ranked_items(db, sub, item.city)
     rank = next((i + 1 for i, r in enumerate(city_rows) if r["item_id"] == item.id), 1)
     return RankState(

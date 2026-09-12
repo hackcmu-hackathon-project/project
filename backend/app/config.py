@@ -14,11 +14,17 @@ class Settings(BaseSettings):
 
     port: int = 8000
     cors_origins: str = "*"
+    #: Set ENV=production to refuse to start without Auth0 configured.
+    env: str = "development"
 
     @property
     def auth_enabled(self) -> bool:
         """No Auth0 domain means local dev mode: every caller is the dev user."""
         return bool(self.auth0_domain)
+
+    @property
+    def is_production(self) -> bool:
+        return self.env.lower() in ("production", "prod")
 
     @property
     def origins(self) -> list[str]:

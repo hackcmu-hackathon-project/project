@@ -1,10 +1,14 @@
-"""Load seed_data.json into MongoDB.
+"""Load seed_data.json (cities and items) into MongoDB.
 
-Items are upserted by id. --demo-user gives a fake friend account a full set of
-rankings so the feed has something in it; --dev-user does the same for the local
-dev identity, so My List is populated before you rank anything yourself.
+seed_data.json holds only the hand-written catalogue. Everything social —
+accounts, follows, rankings — is created by real use, or by the dev-only flags
+here:
 
-    python seed.py [--demo-user] [--dev-user] [--reset]
+    python seed.py [--demo-people] [--dev-user] [--reset]
+
+--demo-people invents a few accounts with rankings and follows so the social
+features have something to act on before anyone else signs up. --dev-user gives
+the local dev identity a starting list. Neither belongs in production.
 """
 
 import asyncio
@@ -30,30 +34,41 @@ PEOPLE = [
 ]
 
 
-async def main(demo_user: bool, dev_user: bool, reset: bool) -> None:
+async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
     data = json.loads(SEED.read_text())
     db = get_db()
     await ensure_indexes()
     now = datetime.now(timezone.utc)
 
     if reset:
-        for name in ("items", "feed_seed", "rankings", "rank_sessions", "users"):
+        for name in ("items", "rankings", "rank_sessions", "users", "follows", "saves", "reactions", "comments"):
             await db[name].delete_many({})
         print("cleared collections")
 
+    curated_ids = [i["id"] for i in data["items"]]
     for item in data["items"]:
         doc = {k: v for k, v in item.items() if not k.startswith("seed_")}
         await db.items.update_one({"id": item["id"]}, {"$set": doc}, upsert=True)
-    print(f"items: {await db.items.count_documents({})}")
 
-    await db.feed_seed.delete_many({})
-    friends = data["friends"]
-    await db.feed_seed.insert_many(
-        [{**p, "friend": friends[p["friend"]], "order": i} for i, p in enumerate(data["feed"])]
-    )
-    print(f"feed_seed: {await db.feed_seed.count_documents({})}")
+    # Anything below the imported-id range that is no longer in the file has
+    # been retired from the catalogue.
+    stale = await db.items.delete_many({"id": {"$lt": 1000, "$nin": curated_ids}})
+    if stale.deleted_count:
+        print(f"retired {stale.deleted_count} curated items no longer in seed_data.json")
+    print(f"items: {await db.items.count_documents({})} ({len(curated_ids)} curated)")
 
-    accounts = list(PEOPLE) if demo_user else []
+    # Rankings and saves pointing at retired items would 404 in the app.
+    live_ids = [d["id"] for d in await db.items.find({}, {"id": 1}).to_list(5000)]
+    for name in ("rankings", "saves"):
+        gone = await db[name].delete_many({"item_id": {"$nin": live_ids}})
+        if gone.deleted_count:
+            print(f"cleaned {gone.deleted_count} orphaned {name}")
+
+    await db.cities.delete_many({})
+    await db.cities.insert_many([{"_id": key, "name": name} for key, name in data["cities"].items()])
+    print(f"cities: {', '.join(data['cities'].values())}")
+
+    accounts = list(PEOPLE) if demo_people else []
     if dev_user:
         accounts.append((DEV_SUB, "Local Dev", "dev@rove.local", "localdev", "#3b5b8c", "Two cities, strong opinions about bakeries."))
 
@@ -132,4 +147,10 @@ async def main(demo_user: bool, dev_user: bool, reset: bool) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main("--demo-user" in sys.argv, "--dev-user" in sys.argv, "--reset" in sys.argv))
+    asyncio.run(
+        main(
+            "--demo-people" in sys.argv or "--demo-user" in sys.argv,
+            "--dev-user" in sys.argv,
+            "--reset" in sys.argv,
+        )
+    )

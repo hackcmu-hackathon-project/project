@@ -7,7 +7,15 @@ import { useAuth } from '../auth';
 
 type Tab = 'discover' | 'following';
 
-export function People({ top, onClose }: { top: number; onClose: () => void }) {
+export function People({
+  top,
+  onClose,
+  onOpenPerson,
+}: {
+  top: number;
+  onClose: () => void;
+  onOpenPerson: (sub: string) => void;
+}) {
   const { token } = useAuth();
   const [tab, setTab] = useState<Tab>('discover');
   const [q, setQ] = useState('');
@@ -106,8 +114,10 @@ export function People({ top, onClose }: { top: number; onClose: () => void }) {
           </Eyebrow>
           {rows.map((p) => (
             <Row key={p.sub} style={{ gap: 12, paddingHorizontal: 22, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#ebe6df' }}>
-              <Initials name={p.name} color={p.color} size={42} />
-              <View style={{ flex: 1, minWidth: 0 }}>
+              <Touch onPress={() => onOpenPerson(p.sub)}>
+                <Initials name={p.name} color={p.color} size={42} />
+              </Touch>
+              <Touch onPress={() => onOpenPerson(p.sub)} style={{ flex: 1, minWidth: 0 }}>
                 <T s="med" size={15}>{p.name}</T>
                 <T s="soft" size={12} style={{ marginTop: 2 }}>
                   @{p.handle} · {p.ranked} ranked · {p.followers} follower{p.followers === 1 ? '' : 's'}
@@ -117,7 +127,7 @@ export function People({ top, onClose }: { top: number; onClose: () => void }) {
                     Top pick: {p.top_pick}
                   </T>
                 ) : null}
-              </View>
+              </Touch>
               <Touch
                 onPress={() => toggle(p)}
                 style={{
