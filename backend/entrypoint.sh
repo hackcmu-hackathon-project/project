@@ -1,6 +1,11 @@
 #!/bin/sh
-# Seed an empty database so a fresh clone has something to look at, then serve.
+# Seed an empty database so a fresh deploy has something to look at, then serve.
 set -e
+
+# Railway (and most hosts) supply the connection string under their own name.
+if [ -z "$MONGODB_URI" ] && [ -n "$MONGO_URL" ]; then
+  export MONGODB_URI="$MONGO_URL"
+fi
 
 if [ "$(python -c "
 import asyncio

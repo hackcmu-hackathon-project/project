@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     # an Atlas URI with a password) never end up in the repository.
     model_config = SettingsConfigDict(env_file=(".env", ".env.local"), extra="ignore")
 
+    #: MONGO_URL is what Railway and friends call it; MONGODB_URI wins if both are set.
     mongodb_uri: str = "mongodb://localhost:27017"
+    mongo_url: str = ""
     mongodb_db: str = "rove"
 
     auth0_domain: str = ""
@@ -24,6 +26,12 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     #: Set ENV=production to refuse to start without Auth0 configured.
     env: str = "development"
+
+    @property
+    def mongo(self) -> str:
+        return self.mongodb_uri if self.mongodb_uri != "mongodb://localhost:27017" else (
+            self.mongo_url or self.mongodb_uri
+        )
 
     @property
     def auth_enabled(self) -> bool:

@@ -8,7 +8,7 @@ _client: AsyncIOMotorClient | None = None
 def get_client() -> AsyncIOMotorClient:
     global _client
     if _client is None:
-        _client = AsyncIOMotorClient(get_settings().mongodb_uri, uuidRepresentation="standard")
+        _client = AsyncIOMotorClient(get_settings().mongo, uuidRepresentation="standard")
     return _client
 
 

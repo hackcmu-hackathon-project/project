@@ -21,7 +21,9 @@ services:
       retries: 20
 
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: rove-api
     command: ['./entrypoint.sh']
     environment:
