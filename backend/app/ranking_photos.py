@@ -18,6 +18,44 @@ def photo_urls(row):
     return [f'/api/ranking-photos/{id}' for id in row.get('photo_ids', [])]
 
 
+def is_member_photo(url):
+    return bool(url) and url.startswith('/api/ranking-photos/')
+
+
+async def refresh_cover(db, item_id):
+    """Let somebody's own photo be the cover when the place has no other.
+
+    A photo we found for the place always wins; this only fills the gap, and
+    steps back out of the way if the ranking it came from goes.
+    """
+    item = await db.items.find_one({'id': item_id}, {'photo_url': 1})
+    if not item or (item.get('photo_url') and not is_member_photo(item['photo_url'])):
+        return
+
+    row = await db.rankings.find_one(
+        {'item_id': item_id, 'photo_ids': {'$exists': True, '$ne': []}},
+        sort=[('updated_at', -1)],
+    )
+    if not row:
+        if item.get('photo_url'):
+            await db.items.update_one({'id': item_id}, {'$set': {
+                'photo_url': None, 'photo_thumb': None, 'photo_credit': None,
+                'photo_license': None, 'photo_provider': None, 'photo_source_url': None,
+            }})
+        return
+
+    person = await db.users.find_one({'_id': row['sub']}, {'name': 1}) or {}
+    url = photo_urls(row)[0]
+    await db.items.update_one({'id': item_id}, {'$set': {
+        'photo_url': url,
+        'photo_thumb': url,
+        'photo_credit': person.get('name', 'A Rove user'),
+        'photo_license': '',
+        'photo_provider': 'Rove',
+        'photo_source_url': None,
+    }})
+
+
 @router.post('/rankings/{item_id}/photos')
 async def add_photos(item_id: int, files: list[UploadFile] = File(...),
                      user: Principal = Depends(current_user), db=Depends(get_db)):
@@ -61,6 +99,7 @@ async def add_photos(item_id: int, files: list[UploadFile] = File(...),
         for id in ids:
             await bucket.delete(id)
         raise
+    await refresh_cover(db, item_id)
     return {'photo_urls': photo_urls(await db.rankings.find_one(owner))}
 
 

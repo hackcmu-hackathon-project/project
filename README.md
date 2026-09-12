@@ -278,6 +278,11 @@ and the rest imported.
   own from the camera roll, which is also how you replace a bad photo on any
   existing place (**a place → Use your own photo instead**).
 
+A place with no photo of its own borrows one from somebody who went: the most
+recent photo attached to a ranking of it becomes the cover, credited to them,
+and is released again if that ranking goes. A photo we found for the place
+always wins.
+
 Uploaded photos are re-encoded server-side — EXIF rotation honoured, long edge
 capped at 1600px, JPEG at quality 82 — and stored in GridFS, so the whole stack
 still needs only a MongoDB connection string. A place with no photo shows a

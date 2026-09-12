@@ -363,7 +363,9 @@ async def item_photos(item_id: int, db: AsyncIOMotorDatabase = Depends(get_db)):
     """Every picture of this place: the cover first, then people's own photos."""
     item = await ranking.item_or_404(db, item_id)
     photos = []
-    if item.photo_url:
+    # A cover that is itself somebody's photo comes back below, with their name
+    # on it; listing it twice would be odd.
+    if item.photo_url and not ranking_photos.is_member_photo(item.photo_url):
         photos.append({
             "url": item.photo_url,
             "credit": item.photo_credit or "",
@@ -513,6 +515,8 @@ async def delete_ranking(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     await ranking.unrank(db, user.sub, item_id)
+    # Their photos went with the ranking; the cover can't keep pointing at them.
+    await ranking_photos.refresh_cover(db, item_id)
 
 
 # ------------------------------------------------------------------------- feed
