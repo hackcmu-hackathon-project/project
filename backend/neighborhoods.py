@@ -49,6 +49,21 @@ HOODS: dict[str, list[tuple[str, float, float]]] = {
         ("Staten Island", 40.5795, -74.1502), ("Roosevelt Island", 40.7610, -73.9500),
         ("Governors Island", 40.6895, -74.0166), ("Queens", 40.7282, -73.7949),
     ],
+    "pgh": [
+        ("Downtown", 40.4417, -79.9959), ("Strip District", 40.4520, -79.9760),
+        ("North Shore", 40.4470, -80.0090), ("North Side", 40.4560, -80.0110),
+        ("Lawrenceville", 40.4700, -79.9620), ("Bloomfield", 40.4620, -79.9500),
+        ("Shadyside", 40.4520, -79.9340), ("East Liberty", 40.4620, -79.9250),
+        ("Oakland", 40.4420, -79.9560), ("Squirrel Hill", 40.4380, -79.9230),
+        ("Point Breeze", 40.4470, -79.9060), ("Highland Park", 40.4780, -79.9240),
+        ("South Side", 40.4280, -79.9730), ("Mount Washington", 40.4310, -80.0090),
+        ("Beechview", 40.4110, -80.0250), ("Brookline", 40.3960, -80.0200),
+        ("Greenfield", 40.4260, -79.9390), ("Hazelwood", 40.4090, -79.9420),
+        ("Polish Hill", 40.4560, -79.9660), ("Hill District", 40.4450, -79.9760),
+        ("Homewood", 40.4560, -79.8960), ("Regent Square", 40.4340, -79.8960),
+        ("West End", 40.4390, -80.0290), ("Schenley Park", 40.4360, -79.9440),
+        ("Frick Park", 40.4340, -79.9060), ("Station Square", 40.4340, -80.0010),
+    ],
 }
 
 

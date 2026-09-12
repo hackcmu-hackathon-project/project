@@ -8,6 +8,7 @@ from .auth import Principal, current_user
 from .db import get_db
 from .models import (
     CATEGORIES,
+    CITY_NAMES,
     Activity,
     City,
     Comment,
@@ -28,7 +29,7 @@ from .models import (
 
 router = APIRouter(prefix="/api")
 
-CITIES = {"sf": "San Francisco", "nyc": "New York"}
+CITIES = CITY_NAMES
 
 
 def _now() -> datetime:

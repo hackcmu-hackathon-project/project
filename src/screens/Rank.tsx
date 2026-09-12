@@ -181,8 +181,8 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           <View style={{ marginBottom: 16 }}>
             <CityChips city={draft.city} onChange={(c) => setDraft((d) => ({ ...d, city: c }))} />
           </View>
-          {field('What is it', 'title', draft.city === 'sf' ? 'Sunrise at Bernal Hill' : 'Sunset over the Williamsburg Bridge')}
-          {field('Neighborhood', 'hood', draft.city === 'sf' ? 'Bernal Heights' : 'Williamsburg')}
+          {field('What is it', 'title', 'Sunrise from the overlook')}
+          {field('Neighborhood', 'hood', 'Which part of town')}
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Kind of thing</Eyebrow>
           <Row style={{ flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
             {CATEGORIES.map((c) => (

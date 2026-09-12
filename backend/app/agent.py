@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from . import itinerary, people, social
 from .config import get_settings
-from .models import CATEGORIES, City
+from .models import CATEGORIES, CITY_NAMES, City
 
 #: Each turn is one request against a per-minute quota, so the prompt pushes the
 #: model to gather everything it needs in one round: tools, then answer.
@@ -36,7 +36,7 @@ async def _call(client: httpx.AsyncClient, url: str, key: str, payload: dict) ->
         response = await client.post(url, headers={"x-goog-api-key": key}, json=payload)
     return response
 
-SYSTEM = """You are Rove's planning assistant. Rove ranks *things to do* in San Francisco and New York — never restaurants or bars.
+SYSTEM = """You are Rove's planning assistant. Rove ranks *things to do* in San Francisco, New York and Pittsburgh — never restaurants or bars.
 
 Use the tools before answering anything factual about places, the person's lists, or their friends. Never invent a place, a score or an id: every place you mention must have come from a tool result in this conversation, and you refer to places by their exact catalogue title.
 
@@ -79,7 +79,7 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "city": {"type": "string", "enum": ["sf", "nyc"]},
+                "city": {"type": "string", "enum": list(CITY_NAMES)},
                 "query": {"type": "string", "description": "Words to match in the title, neighborhood or tags."},
                 "category": {"type": "string", "enum": list(CATEGORIES)},
                 "max_price": {"type": "integer", "description": "0 free, 1 cheap, 2 mid, 3 expensive."},
@@ -93,7 +93,7 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "city": {"type": "string", "enum": ["sf", "nyc"]},
+                "city": {"type": "string", "enum": list(CITY_NAMES)},
                 "kind": {"type": "string", "enum": ["ranked", "saved"]},
             },
             "required": ["city", "kind"],
@@ -104,7 +104,7 @@ TOOLS = [
         "description": "Places the people the caller follows rated highly, with who rated them and how.",
         "parameters": {
             "type": "object",
-            "properties": {"city": {"type": "string", "enum": ["sf", "nyc"]}},
+            "properties": {"city": {"type": "string", "enum": list(CITY_NAMES)}},
             "required": ["city"],
         },
     },
@@ -123,7 +123,7 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "city": {"type": "string", "enum": ["sf", "nyc"]},
+                "city": {"type": "string", "enum": list(CITY_NAMES)},
                 "start_date": {"type": "string", "description": "YYYY-MM-DD"},
                 "end_date": {"type": "string", "description": "YYYY-MM-DD"},
                 "title": {"type": "string"},
@@ -276,7 +276,7 @@ class Tools:
             "id": trip_id,
             "_id": trip_id,
             "owner": self.sub,
-            "title": title.strip() or f"{'San Francisco' if city == 'sf' else 'New York'} trip",
+            "title": title.strip() or f"{CITY_NAMES[city]} trip",
             "city": city,
             "travel_mode": travel_mode,
             "revision": 1,
@@ -306,7 +306,7 @@ async def run(db: AsyncIOMotorDatabase, sub: str, body: ChatRequest) -> dict:
     system = (
         f"{SYSTEM}\n\nToday is {today.isoformat()} ({today.strftime('%A')}). "
         f"Tomorrow is {(today + timedelta(days=1)).isoformat()}. "
-        f"They are currently looking at {'San Francisco' if body.city == 'sf' else 'New York'}."
+        f"They are currently looking at {CITY_NAMES[body.city]}."
     )
     used: list[str] = []
 

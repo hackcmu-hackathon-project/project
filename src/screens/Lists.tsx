@@ -13,8 +13,9 @@ export function Lists({ top, onOpen, onRank, onPlan }: { onPlan: () => void; top
   // local state honest between a rank and the next refresh.
   const unvisited = saves.filter((s) => s.score == null);
   const want = unvisited.filter((s) => s.city === city);
-  const elsewhere = unvisited.length - want.length;
-  const otherCity = city === 'sf' ? 'nyc' : 'sf';
+  const elsewhere = unvisited.filter((s) => s.city !== city);
+  // Point at whichever city actually holds them.
+  const otherCity = elsewhere[0]?.city;
   const [refreshing, setRefreshing] = useState(false);
   const pull = async () => {
     setRefreshing(true);
@@ -80,10 +81,10 @@ export function Lists({ top, onOpen, onRank, onPlan }: { onPlan: () => void; top
           Nothing saved in {CITIES[city]} yet. Tap “Want to go” on anything and it lands here.
         </T>
       ) : null}
-      {elsewhere > 0 ? (
+      {otherCity ? (
         <Touch onPress={() => setCity(otherCity)} style={{ paddingHorizontal: 22, paddingBottom: 8 }}>
           <T s="med" size={13} c={colors.plum}>
-            {elsewhere} more saved in {CITIES[otherCity]} →
+            {elsewhere.length} more saved elsewhere →
           </T>
         </Touch>
       ) : null}

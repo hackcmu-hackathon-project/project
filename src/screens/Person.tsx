@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { colors, radius, fmtScore } from '../theme';
-import { CITIES, meta } from '../data';
+import { CITIES, CITY_KEYS, CityKey, meta } from '../data';
 import { ApiRanking, Person as PersonType, api, toItem } from '../api';
 import { Eyebrow, Initials, Photo, Row, ScoreDot, T, Touch } from '../components/ui';
 import { useAuth } from '../auth';
@@ -68,7 +68,7 @@ export function Person({
     );
   }
 
-  const byCity = (city: 'sf' | 'nyc') => rows.filter((r) => r.item.city === city);
+  const byCity = (city: CityKey) => rows.filter((r) => r.item.city === city);
 
   return (
     <ScrollView contentContainerStyle={{ paddingTop: top + 8, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -111,7 +111,7 @@ export function Person({
         </Touch>
       </View>
 
-      {(['sf', 'nyc'] as const).map((city) => {
+      {CITY_KEYS.map((city) => {
         const list = byCity(city);
         if (!list.length) return null;
         return (

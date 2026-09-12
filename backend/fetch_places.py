@@ -32,7 +32,7 @@ from places_source import (
     subsumed,
 )
 
-CITY_NAME = {"sf": "San Francisco", "nyc": "New York"}
+from app.models import CITY_NAMES as CITY_NAME
 
 #: Imported ids live above this line, derived from the Wikipedia page id.
 IMPORTED_ID_BASE = 1_000_000
@@ -110,7 +110,7 @@ async def main(per_city: int, replace: bool) -> None:
         print(f"removed {removed.deleted_count} previously imported places")
 
     total = 0
-    for city in ("sf", "nyc"):
+    for city in CITY_NAME:
         print(f"{CITY_NAME[city]}:")
         for place in collect(city, per_city):
             result = await db.items.update_one({"id": place["id"]}, {"$set": place}, upsert=True)

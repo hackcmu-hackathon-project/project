@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Image, Platform, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, font, radius, scoreColors, fmtScore } from '../theme';
+import { CITIES, CITY_KEYS, CityKey } from '../data';
 
 export const tap = () => {
   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -122,10 +123,10 @@ export function Initials({ name, color, size = 34 }: { name: string; color: stri
   );
 }
 
-export function CityChips({ city, onChange }: { city: 'sf' | 'nyc'; onChange: (c: 'sf' | 'nyc') => void }) {
+export function CityChips({ city, onChange }: { city: CityKey; onChange: (c: CityKey) => void }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      {(['sf', 'nyc'] as const).map((k) => {
+    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+      {CITY_KEYS.map((k) => {
         const on = city === k;
         return (
           <Pressable
@@ -142,7 +143,7 @@ export function CityChips({ city, onChange }: { city: 'sf' | 'nyc'; onChange: (c
             })}
           >
             <T s="med" size={13} c={on ? '#fff' : colors.ink}>
-              {k === 'sf' ? 'San Francisco' : 'New York'}
+              {CITIES[k]}
             </T>
           </Pressable>
         );

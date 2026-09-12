@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 
 from pydantic import BaseModel, Field, model_validator
 
-from .models import City, Item
+from .models import CITY_NAMES, City, Item
 
 
 class ItineraryRequest(BaseModel):
@@ -28,7 +28,7 @@ class ItineraryRequest(BaseModel):
 def maps_url(items: list[dict], city: str, mode: str) -> str | None:
     if not items:
         return None
-    city_name = {"sf": "San Francisco", "nyc": "New York"}[city]
+    city_name = CITY_NAMES[city]
     places = [f'{i["title"]}, {i["hood"]}, {city_name}' for i in items]
     params = {"api": "1", "destination": places[-1], "travelmode": mode}
     if len(places) > 1:

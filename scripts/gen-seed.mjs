@@ -39,7 +39,7 @@ const out = `/**
  */
 import { CATEGORIES, Tier } from './theme';
 
-export type CityKey = 'sf' | 'nyc';
+export type CityKey = ${Object.keys(seed.cities).map((c) => `'${c}'`).join(' | ')};
 export type Category = (typeof CATEGORIES)[number];
 
 export type Item = {
@@ -70,6 +70,9 @@ export type Item = {
 };
 
 export const CITIES: Record<CityKey, string> = ${JSON.stringify(seed.cities, null, 2)};
+
+/** Every city, in the order the app shows them. */
+export const CITY_KEYS = Object.keys(CITIES) as CityKey[];
 
 /** Nothing here is ranked: scores belong to a person, and people live in the database. */
 const CURATED = ${JSON.stringify(items, null, 2)};
