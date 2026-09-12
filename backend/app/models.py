@@ -39,6 +39,7 @@ class Item(BaseModel):
     photo_credit: str | None = None
     photo_license: str | None = None
     photo_source_url: str | None = None
+    photo_provider: str | None = None
     #: Set on places imported from Wikipedia.
     wikipedia_url: str | None = None
     created_by: str | None = None

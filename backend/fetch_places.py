@@ -24,6 +24,7 @@ from places_source import (
     DURATION,
     PRICE,
     classify,
+    tags_for,
     details,
     first_sentences,
     geosearch,
@@ -81,7 +82,7 @@ def collect(city: str, per_city: int) -> list[dict]:
                 "best_time": "",
                 "note": first_sentences(extract),
                 "tip": "",
-                "tags": [t.lower() for t in (category,)],
+                "tags": tags_for(category, PRICE[category], DURATION[category]),
                 "img": "photo",
                 "lat": lat,
                 "lon": lon,
@@ -93,6 +94,7 @@ def collect(city: str, per_city: int) -> list[dict]:
                 "photo_thumb": thumb,
                 "photo_credit": "Wikipedia contributors",
                 "photo_license": "CC BY-SA",
+                "photo_provider": "Wikipedia",
                 "photo_source_url": page.get("fullurl"),
             }
         )

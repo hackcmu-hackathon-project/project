@@ -154,12 +154,28 @@ DEFUNCT = ("was a ", "was an ", "was the ", "former", "demolished", "closed in",
 EVENTS = (
     "earthquake", "fire of", "riot", "massacre", "disaster", "terrorist", "attack on",
     "protest", "epidemic", "pandemic", "crash", "shooting", "bombing", "blackout",
-    "took place", "was held", "is an annual event", "is a festival held",
+    "took place", "was held", "held in", "held each", "held every", "annual",
     "world's fair", "exposition of", "olympics", "election",
     "battle of", "battle at", "collision", "derailment", "accident", "siege",
 )
 
 DURATION = {"Outdoors": 90, "Culture": 90, "Landmark": 45, "Music": 120, "Nightlife": 120, "Sports": 180, "Shop": 60}
+
+
+def tags_for(category: str, price: int, duration_min: int) -> list[str]:
+    """Small, true facts — better than echoing the category back."""
+    tags = []
+    if price == 0:
+        tags.append("free")
+    if duration_min <= 45:
+        tags.append("quick")
+    if duration_min >= 150:
+        tags.append("half a day")
+    if category in ("Outdoors", "Landmark"):
+        tags.append("outside")
+    if category in ("Culture", "Shop"):
+        tags.append("rainy-day")
+    return tags
 PRICE = {"Outdoors": 0, "Landmark": 0, "Culture": 2, "Music": 3, "Nightlife": 2, "Sports": 3, "Shop": 1}
 
 
