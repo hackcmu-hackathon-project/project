@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import people, photos, ranking, social, uploads
+from . import gemini_planner, itinerary, people, photos, ranking, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -693,3 +693,85 @@ async def feed(
             )
 
     return entries[:limit]
+
+
+@router.post("/itineraries/generate")
+async def generate_itinerary(
+    body: itinerary.ItineraryRequest,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    items = await db.items.find({"city": body.city}, {"_id": 0}).to_list(None)
+    saved = await db.saves.find({"sub": user.sub}).to_list(None)
+    visited = await db.rankings.find({"sub": user.sub}).to_list(None)
+    subs = await people.following_subs(db, user.sub)
+    recommendations = await db.rankings.find({"sub": {"$in": subs}, "score": {"$gte": 5}}).to_list(None)
+    users = await db.users.find({"_id": {"$in": subs}}).to_list(None)
+    names = {u["_id"]: u.get("name", "A friend") for u in users}
+    try:
+        plan = itinerary.build_itinerary(
+            body, items, {s["item_id"] for s in saved}, {r["item_id"] for r in visited},
+            [{**r, "name": names.get(r["sub"], "A friend")} for r in recommendations],
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    return plan
+
+
+@router.get('/itineraries')
+async def saved_itineraries(user: Principal = Depends(current_user), db: AsyncIOMotorDatabase = Depends(get_db)):
+    return await db.itineraries.find({'owner': user.sub}, {'_id': 0, 'owner': 0}).sort('updated_at', -1).to_list(None)
+
+
+@router.put('/itineraries/{trip_id}')
+async def save_itinerary(
+    trip_id: str,
+    body: itinerary.SaveItinerary,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    from uuid import UUID
+    from pymongo.errors import DuplicateKeyError
+    try:
+        trip_id = str(UUID(trip_id))
+    except ValueError:
+        raise HTTPException(422, 'Invalid trip ID')
+    items = await db.items.find({'city': body.city}, {'_id': 0}).to_list(None)
+    try:
+        plan = itinerary.saved_plan(body, items)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    doc = {**plan, 'id': trip_id, 'owner': user.sub, 'revision': body.revision + 1, 'updated_at': _now()}
+    if body.revision == 0:
+        try:
+            await db.itineraries.insert_one({'_id': trip_id, **doc})
+        except DuplicateKeyError:
+            raise HTTPException(409, 'Trip already exists. Reopen it before saving.')
+    else:
+        result = await db.itineraries.replace_one(
+            {'_id': trip_id, 'owner': user.sub, 'revision': body.revision}, {'_id': trip_id, **doc})
+        if not result.matched_count:
+            raise HTTPException(409, 'Trip changed or is unavailable. Reopen it before saving.')
+    return {k: v for k, v in doc.items() if k != 'owner'}
+
+
+@router.post('/itineraries/verify')
+async def verify_itinerary(
+    body: itinerary.SaveItinerary,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Explicit, read-only Gemini review of the current draft; never save implicitly."""
+    items = await db.items.find({'city': body.city}, {'_id': 0}).to_list(None)
+    try:
+        plan = itinerary.saved_plan(body, items)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    request = itinerary.ItineraryRequest(
+        city=body.city, start_date=body.days[0].date, end_date=body.days[-1].date,
+        stops_per_day=max(1, max(len(d.item_ids) for d in body.days)),
+        travel_mode=body.travel_mode, use_gemini=True,
+    )
+    return await gemini_planner.review_plan(
+        {**plan, 'unscheduled_count': 0, 'unscheduled_must_try_ids': []}, request)

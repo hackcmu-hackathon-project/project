@@ -4,7 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # .env is committed; .env.local is gitignored and wins, so secrets (API keys,
+    # an Atlas URI with a password) never end up in the repository.
+    model_config = SettingsConfigDict(env_file=(".env", ".env.local"), extra="ignore")
 
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_db: str = "rove"
@@ -14,6 +16,9 @@ class Settings(BaseSettings):
     #: sends ID tokens instead, verified against auth0_client_id.
     auth0_audience: str = ""
     auth0_client_id: str = ""
+
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.8-flash"
 
     port: int = 8000
     cors_origins: str = "*"

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
-import { colors } from '../theme';
+import { colors, radius } from '../theme';
 import { CITIES, meta } from '../data';
 import { CityChips, Eyebrow, Photo, Row, ScoreDot, T, Touch } from '../components/ui';
 import { useStore } from '../store';
 import { OfflineBanner } from '../components/Offline';
 
-export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: number) => void; onRank: (id: number) => void }) {
+export function Lists({ top, onOpen, onRank, onPlan }: { onPlan: () => void; top: number; onOpen: (id: number) => void; onRank: (id: number) => void }) {
   const { city, setCity, ranked, saves, connection, refresh } = useStore();
   const list = ranked(city);
   // The API already drops anything you've ranked; this keeps the optimistic
@@ -36,6 +36,24 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
         <CityChips city={city} onChange={setCity} />
       </View>
 
+      <Touch
+        onPress={onPlan}
+        style={{
+          marginHorizontal: 22,
+          marginBottom: 18,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          borderRadius: radius.lg,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.line,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+      >
+        <T s="med" size={14.5} style={{ flex: 1 }}>Trips</T>
+        <T c={colors.faint} size={16}>›</T>
+      </Touch>
       <OfflineBanner connection={connection} onRetry={refresh} />
 
       {list.map((r, i) => (
