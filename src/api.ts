@@ -169,7 +169,18 @@ export type Me = {
   new_user: boolean;
 };
 
+export type ItineraryRequest = {
+  city: CityKey; start_date: string; end_date: string; must_try_ids: number[];
+  stops_per_day: number; travel_mode: 'walking' | 'driving' | 'bicycling';
+};
+export type ItineraryResult = {
+  days: { date: string; stops: { item: ApiItem; reasons: string[] }[]; activity_minutes: number; maps_url: string | null }[];
+  unscheduled_count: number; unscheduled_must_try_ids: number[];
+};
+
 export const api = {
+  itinerary: (token: string | null, body: ItineraryRequest): Promise<ItineraryResult> =>
+    call('/api/itineraries/generate', token, { method: 'POST', body: JSON.stringify(body) }),
   health: () => call('/health', null),
   me: (token: string | null): Promise<Me> => call('/api/me', token),
   updateMe: (token: string | null, patch: { name?: string; handle?: string; bio?: string }) =>

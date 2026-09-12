@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from './src/auth';
 import { StoreProvider, useStore } from './src/store';
 import { TabBar, TabKey } from './src/components/TabBar';
 import { Feed } from './src/screens/Feed';
+import { Itinerary } from './src/screens/Itinerary';
 import { Lists } from './src/screens/Lists';
 import { Explore } from './src/screens/Explore';
 import { Profile } from './src/screens/Profile';
@@ -23,7 +24,7 @@ import { Activity } from './src/screens/Activity';
 import { Person } from './src/screens/Person';
 
 type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number } | { name: 'people' } | { name: 'activity'; owner: string; itemId: number }
-  | { name: 'person'; sub: string };
+  | { name: 'person'; sub: string } | { name: 'itinerary' };
 
 function Shell() {
   const insets = useSafeAreaInsets();
@@ -62,8 +63,10 @@ function Shell() {
         onFindPeople={() => setScreen({ name: 'people' })}
       />
     );
+  } else if (screen.name === 'itinerary') {
+    body = <Itinerary top={top} onClose={() => goTab('list')} />;
   } else if (screen.name === 'list') {
-    body = <Lists top={top} onOpen={openDetail} onRank={(id) => startRank(id)} />;
+    body = <Lists onPlan={() => setScreen({ name: 'itinerary' })} top={top} onOpen={openDetail} onRank={(id) => startRank(id)} />;
   } else if (screen.name === 'person') {
     body = <Person top={top} sub={screen.sub} onClose={() => goTab(tab)} onOpenActivity={openActivity} />;
   } else if (screen.name === 'activity') {
