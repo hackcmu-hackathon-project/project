@@ -13,8 +13,9 @@ the local dev identity a starting list. Neither belongs in production.
 
 import asyncio
 import json
+import random
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.db import close_client, ensure_indexes, get_db
@@ -90,31 +91,36 @@ async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
             upsert=True,
         )
         await db.rankings.delete_many({"sub": sub})
-        # Rebuild the seeded scores exactly the way the ranking engine would.
-        by_city_tier: dict[tuple[str, str], list[dict]] = {}
-        pool = [i for i in data["items"] if i.get("seed_tier")]
-        # Rotate the catalogue so two people never have identical lists.
-        mine = pool if sub == DEV_SUB else [i for n, i in enumerate(pool) if (n + idx) % 4 != 0]
-        for item in mine:
-            by_city_tier.setdefault((item["city"], item["seed_tier"]), []).append(item)
+
+        # Draw from the whole catalogue — including imported places — so the feed
+        # isn't everybody ranking the same sixteen things.
         rows = []
-        for (city, tier), group in by_city_tier.items():
-            group.sort(key=lambda i: i["seed_score"], reverse=True)
-            low, high = TIER_BANDS[tier]
-            step = (high - low) / (len(group) - 1) if len(group) > 1 else 0.0
-            for idx, item in enumerate(group):
-                score = round(high - step * idx, 1) if len(group) > 1 else round((low + high) / 2, 1)
-                rows.append(
-                    {
-                        "sub": sub,
-                        "item_id": item["id"],
-                        "tier": tier,
-                        "score": score,
-                        "note": None,
-                        "created_at": now,
-                        "updated_at": now,
-                    }
-                )
+        for city in ("sf", "nyc"):
+            catalogue = await db.items.find({"city": city}, {"id": 1}).to_list(2000)
+            rng = random.Random(f"{sub}:{city}")
+            picked = rng.sample(catalogue, min(len(catalogue), rng.randint(8, 14)))
+            tiers = ["loved"] * 3 + ["liked"] * 5 + ["okay"] * 2
+            by_tier: dict[str, list[int]] = {}
+            for n, doc in enumerate(picked):
+                by_tier.setdefault(tiers[n % len(tiers)], []).append(doc["id"])
+
+            for tier, ids in by_tier.items():
+                low, high = TIER_BANDS[tier]
+                step = (high - low) / (len(ids) - 1) if len(ids) > 1 else 0.0
+                for n, item_id in enumerate(ids):
+                    score = round(high - step * n, 1) if len(ids) > 1 else round((low + high) / 2, 1)
+                    rows.append(
+                        {
+                            "sub": sub,
+                            "item_id": item_id,
+                            "tier": tier,
+                            "score": score,
+                            "note": None,
+                            "created_at": now,
+                            "updated_at": now - timedelta(hours=rng.randint(1, 240)),
+                        }
+                    )
+
         if rows:
             await db.rankings.insert_many(rows)
         print(f"rankings: {len(rows)} for {sub}")
