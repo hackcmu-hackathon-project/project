@@ -12,6 +12,8 @@ class ItineraryRequest(BaseModel):
     city: City
     start_date: date
     end_date: date
+    use_gemini: bool = False
+    preferences: str = Field("", max_length=1000)
     must_try_ids: list[int] = Field(default_factory=list, max_length=100)
     stops_per_day: int = Field(3, ge=1, le=5)
     travel_mode: Literal["walking", "driving", "bicycling"] = "walking"
@@ -73,3 +75,44 @@ def build_itinerary(body: ItineraryRequest, items: list[dict], saved: set[int], 
                      "maps_url": maps_url(day_items, body.city, body.travel_mode)})
     return {"days": days, "unscheduled_count": len(candidates) - len(selected),
             "unscheduled_must_try_ids": sorted(must - {c["id"] for c in selected})}
+
+
+class SavedDay(BaseModel):
+    date: date
+    item_ids: list[int] = Field(default_factory=list, max_length=5)
+    notes: str = Field('', max_length=2000)
+
+
+class SaveItinerary(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    city: City
+    travel_mode: Literal['walking', 'driving', 'bicycling'] = 'walking'
+    days: list[SavedDay] = Field(min_length=1, max_length=14)
+    revision: int = Field(0, ge=0)
+
+    @model_validator(mode='after')
+    def valid_plan(self):
+        self.title = self.title.strip()
+        if not self.title:
+            raise ValueError('Give your trip a name.')
+        dates = [d.date for d in self.days]
+        if any(b - a != timedelta(days=1) for a, b in zip(dates, dates[1:])):
+            raise ValueError('Trip dates must be consecutive and in order.')
+        ids = [id for d in self.days for id in d.item_ids]
+        if len(ids) != len(set(ids)):
+            raise ValueError('A place can only appear once in a trip.')
+        return self
+
+
+def saved_plan(body: SaveItinerary, items: list[dict]) -> dict:
+    catalogue = {i['id']: i for i in items if i['city'] == body.city}
+    if {id for day in body.days for id in day.item_ids} - catalogue.keys():
+        raise ValueError('A place is unavailable or belongs to another city. Remove it before saving.')
+    days = []
+    for day in body.days:
+        places = [Item(**catalogue[id]).model_dump() for id in day.item_ids]
+        days.append({'date': day.date.isoformat(), 'notes': day.notes,
+                     'stops': [{'item': i, 'reasons': ['Your trip selection']} for i in places],
+                     'activity_minutes': sum(max(0, i['duration_min']) for i in places),
+                     'maps_url': maps_url(places, body.city, body.travel_mode)})
+    return {'title': body.title, 'city': body.city, 'travel_mode': body.travel_mode, 'days': days}

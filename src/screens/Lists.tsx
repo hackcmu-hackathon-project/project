@@ -37,7 +37,7 @@ export function Lists({ top, onOpen, onRank, onPlan }: { onPlan: () => void; top
       </View>
 
       <Touch onPress={onPlan} style={{ marginHorizontal: 22, marginBottom: 20, padding: 18, borderRadius: 16, backgroundColor: colors.plum }}>
-        <T s="med" size={17} c="#fff">Plan a trip →</T>
+        <T s="med" size={17} c="#fff">Plan & saved trips →</T>
         <T size={13} c="#fff" style={{ marginTop: 4 }}>Your must-tries. Your friends’ picks. A daily route.</T>
       </Touch>
       <OfflineBanner connection={connection} onRetry={refresh} />
