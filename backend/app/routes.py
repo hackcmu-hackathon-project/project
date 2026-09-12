@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import agent, gemini_planner, itinerary, people, photos, ranking, social, uploads
+from . import agent, ranking_photos, gemini_planner, itinerary, people, photos, ranking, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -28,6 +28,7 @@ from .models import (
 )
 
 router = APIRouter(prefix="/api")
+router.include_router(ranking_photos.router)
 
 CITIES = CITY_NAMES
 
@@ -309,6 +310,36 @@ async def create_item(
 # --------------------------------------------------------------------- rankings
 
 
+@router.get("/items/{item_id}/photos")
+async def item_photos(item_id: int, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """Every picture of this place: the cover first, then people's own photos."""
+    item = await ranking.item_or_404(db, item_id)
+    photos = []
+    if item.photo_url:
+        photos.append({
+            "url": item.photo_url,
+            "credit": item.photo_credit or "",
+            "source": item.photo_provider or "",
+            "by": None,
+        })
+
+    rows = await db.rankings.find(
+        {"item_id": item_id, "photo_ids": {"$exists": True, "$ne": []}}, {"_id": 0}
+    ).sort("updated_at", -1).to_list(50)
+    if rows:
+        people = await db.users.find({"_id": {"$in": [r["sub"] for r in rows]}}).to_list(200)
+        names = {p["_id"]: p.get("name", "Someone") for p in people}
+        for row in rows:
+            for url in ranking_photos.photo_urls(row):
+                photos.append({
+                    "url": url,
+                    "credit": names.get(row["sub"], "Someone"),
+                    "source": "Rove",
+                    "by": row["sub"],
+                })
+    return photos
+
+
 @router.post("/items/{item_id}/photo", response_model=Item)
 async def upload_item_photo(
     item_id: int,
@@ -510,6 +541,7 @@ async def get_activity(
         tier=row["tier"],
         score=row["score"],
         note=row.get("note") or "",
+        photo_urls=ranking_photos.photo_urls(row),
         when=_ago(row.get("updated_at")),
         rank=rank,
         total=len(city_rows),

@@ -4,8 +4,8 @@ import { colors, radius, shadow, fmtScore, scoreColors } from '../theme';
 import { CITIES, meta } from '../data';
 import { Eyebrow, Initials, Photo, Row, ScoreDot, T, Touch } from '../components/ui';
 import { useStore } from '../store';
-import { pickPhoto } from '../photoPicker';
-import { ItemRanking, api } from '../api';
+import { ItemRanking, PlacePhoto, api } from '../api';
+import { PhotoCarousel } from '../components/PhotoCarousel';
 import { useAuth } from '../auth';
 
 const PRICE = ['Free', 'Cheap', 'Mid', 'Spendy'];
@@ -32,10 +32,10 @@ export function Detail({
   onRank: (id: number) => void;
   onOpenActivity: (owner: string, itemId: number) => void;
 }) {
-  const { me, items, connection, toggleSave, isSaved, unrank, uploadPhoto } = useStore();
-  const [photoBusy, setPhotoBusy] = useState(false);
+  const { me, items, connection, toggleSave, isSaved, unrank } = useStore();
   const { token } = useAuth();
   const [theirs, setTheirs] = useState<ItemRanking[]>([]);
+  const [photos, setPhotos] = useState<PlacePhoto[]>([]);
 
   useEffect(() => {
     if (connection !== 'online') return;
@@ -43,6 +43,10 @@ export function Detail({
     api
       .itemRankings(token, id)
       .then((rows) => alive && setTheirs(rows))
+      .catch(() => {});
+    api
+      .itemPhotos(token, id)
+      .then((rows) => alive && setPhotos(rows))
       .catch(() => {});
     return () => {
       alive = false;
@@ -59,17 +63,21 @@ export function Detail({
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
-      <Photo uri={item.photo} label={item.title} style={{ height: 300, justifyContent: 'flex-end', paddingHorizontal: 22, paddingBottom: 22 }}>
+      <PhotoCarousel
+        photos={photos.length ? photos : item.photo ? [{ url: item.photo, credit: item.photoCredit ?? '', source: item.photoProvider ?? '', by: null }] : []}
+        height={300}
+        label={item.title}
+      >
         <Touch
           onPress={onClose}
           style={{ position: 'absolute', top: top + 10, left: 18, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }}
         >
           <T size={18}>‹</T>
         </Touch>
-        <View style={[shadow.soft, { alignSelf: 'flex-start', borderRadius: 32 }]}>
+        <View style={[shadow.soft, { position: 'absolute', left: 22, bottom: 22, borderRadius: 32 }]}>
           <ScoreDot score={item.score} size={64} />
         </View>
-      </Photo>
+      </PhotoCarousel>
       {item.score != null ? (
         <T s="soft" size={11} style={{ paddingHorizontal: 22, paddingTop: 8, color: colors.faint }}>
           Your score · ranked #{myRank} of {cityList.length} in {CITIES[item.city]}
@@ -169,31 +177,12 @@ export function Detail({
         </Touch>
       ) : null}
 
-      {connection === 'online' ? (
-        <Touch
-          onPress={async () => {
-            const file = await pickPhoto();
-            if (!file) return;
-            setPhotoBusy(true);
-            try {
-              await uploadPhoto(item.id, file);
-            } finally {
-              setPhotoBusy(false);
-            }
-          }}
-          style={{ paddingHorizontal: 22, paddingTop: 18 }}
-          label="Add your own photo"
-        >
-          <T s="med" size={13} c={colors.plum}>
-            {photoBusy ? 'Uploading…' : item.photo ? 'Use your own photo instead →' : 'Add a photo →'}
-          </T>
-        </Touch>
-      ) : null}
-
-      {item.photoCredit ? (
+      {photos.length ? (
         <T s="soft" size={11} style={{ paddingHorizontal: 22, paddingTop: 22, color: colors.faint, lineHeight: 16 }}>
-          Photo: {item.photoCredit}{item.photoLicense ? ` · ${item.photoLicense}` : ''}
-          {item.photoProvider ? ` · via ${item.photoProvider}` : ''}
+          {photos.length > 1 ? `${photos.length} photos · ` : ''}
+          {photos.filter((p) => p.by).length
+            ? `${photos.filter((p) => p.by).length} from people who've been`
+            : `Photo: ${photos[0].credit}${photos[0].source ? ` · via ${photos[0].source}` : ''}`}
         </T>
       ) : null}
     </ScrollView>

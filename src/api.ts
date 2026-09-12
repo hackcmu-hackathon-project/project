@@ -56,6 +56,7 @@ export type Comment = {
 };
 
 export type Activity = {
+  photo_urls?: string[];
   owner_sub: string;
   owner_name: string;
   owner_handle: string;
@@ -87,7 +88,7 @@ export type RankState = {
 };
 
 /** Uploaded photos are served by the API itself, so relative URLs need the host. */
-const absolute = (url: string | null | undefined): string | null =>
+export const absolute = (url: string | null | undefined): string | null =>
   !url ? null : url.startsWith('/') ? `${API_URL}${url}` : url;
 
 export const toItem = (a: ApiItem): Item => ({
@@ -139,6 +140,8 @@ async function call(path: string, token: string | null, init: RequestInit = {}) 
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.status === 204 ? null : res.json();
 }
+
+export type PlacePhoto = { url: string; credit: string; source: string; by: string | null };
 
 export type ItemRanking = {
   sub: string;
@@ -225,6 +228,20 @@ export type SaveTrip = {
 };
 
 export const api = {
+  uploadRankingPhotos: async (token: string | null, itemId: number, files: { uri: string; name: string; type: string }[]): Promise<{ photo_urls: string[] }> => {
+    const body = new FormData();
+    for (const file of files) {
+      if (file.uri.startsWith('data:') || file.uri.startsWith('blob:')) {
+        const blob = await (await fetch(file.uri)).blob();
+        body.append('files', new File([blob], file.name, { type: file.type }));
+      } else body.append('files', file as any);
+    }
+    const res = await fetch(`${API_URL}/api/rankings/${itemId}/photos`, {
+      method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body,
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json();
+  },
   agent: (token: string | null, messages: AgentTurn[], city: string): Promise<AgentReply> =>
     call('/api/agent/chat', token, { method: 'POST', body: JSON.stringify({ messages, city }) }),
   trips: (token: string | null): Promise<SavedTrip[]> => call('/api/itineraries', token),
@@ -287,6 +304,10 @@ export const api = {
     body: { city: string; title: string; hood: string; category: string; duration_min?: number; price?: number; note?: string; tip?: string; best_time?: string }
   ): Promise<Item> => toItem(await call('/api/items', token, { method: 'POST', body: JSON.stringify(body) })),
   myActivity: (token: string | null): Promise<MyActivity[]> => call('/api/activity/mine', token),
+  itemPhotos: (token: string | null, itemId: number): Promise<PlacePhoto[]> =>
+    call(`/api/items/${itemId}/photos`, token).then((rows: PlacePhoto[]) =>
+      rows.map((p) => ({ ...p, url: absolute(p.url)! }))
+    ),
   itemRankings: (token: string | null, itemId: number): Promise<ItemRanking[]> =>
     call(`/api/items/${itemId}/rankings`, token),
   saves: (token: string | null): Promise<ApiItem[]> => call('/api/saves', token),

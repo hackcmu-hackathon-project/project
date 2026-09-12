@@ -12,8 +12,9 @@ export function SignIn() {
       <View style={{ padding: 28, paddingBottom: 40 }}>
         <T s="serif" size={52} style={{ lineHeight: 54 }}>Rove</T>
         <T s="soft" size={16} style={{ marginTop: 10, lineHeight: 23 }}>
-          Rank the things you actually did in San Francisco and New York. Compare two at a
-          time, get a number that means something, follow the people whose taste you trust.
+          Rank the things you actually did in San Francisco, New York and Pittsburgh. Compare
+          two at a time, get a number that means something, follow the people whose taste you
+          trust.
         </T>
 
         {configured ? (
