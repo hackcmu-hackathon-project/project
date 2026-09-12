@@ -39,10 +39,20 @@ type Ctx = {
   /** Items you saved to "want to go", newest first. */
   saves: Item[];
   toggleSave: (itemId: number) => Promise<void>;
+  /** Your score for an item, or null if you haven't ranked it. */
+  myScore: (itemId: number) => number | null;
   /** Drop your ranking of an item; the rest of that tier re-spreads on the server. */
   unrank: (itemId: number) => Promise<void>;
   /** Add a place that isn't in the catalogue yet. Returns it once the API has it. */
-  createItem: (body: { city: CityKey; title: string; hood: string; category: string; note?: string }) => Promise<Item>;
+  createItem: (body: {
+    city: CityKey;
+    title: string;
+    hood: string;
+    category: string;
+    note?: string;
+    tip?: string;
+    best_time?: string;
+  }) => Promise<Item>;
   /** Set or clear your reaction on someone's ranking. Tapping the same emoji clears it. */
   react: (owner: string, itemId: number, emoji: string) => Promise<void>;
   isSaved: (itemId: number) => boolean;
@@ -233,6 +243,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const toggleSave = useCallback(
     async (itemId: number) => {
       if (!online) return;
+      // Want-to-go is for places you haven't been; ranking one retires the save.
+      if (items.find((i) => i.id === itemId)?.score != null) return;
       const already = saves.some((s) => s.id === itemId);
       // Optimistic, so the button responds instantly.
       setSaves((prev) =>
@@ -264,7 +276,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createItem = useCallback(
-    async (body: { city: CityKey; title: string; hood: string; category: string; note?: string }) => {
+    async (body: {
+      city: CityKey;
+      title: string;
+      hood: string;
+      category: string;
+      note?: string;
+      tip?: string;
+      best_time?: string;
+    }) => {
       const created = await api.createItem(token, body);
       setItems((prev) => [...prev, created]);
       return created;
@@ -322,6 +342,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ranked,
       saves,
       toggleSave,
+      myScore: (id: number) => items.find((i) => i.id === id)?.score ?? null,
       unrank,
       createItem,
       react,

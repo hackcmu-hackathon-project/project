@@ -9,7 +9,9 @@ import { OfflineBanner } from '../components/Offline';
 export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: number) => void; onRank: (id: number) => void }) {
   const { city, setCity, ranked, saves, connection, refresh } = useStore();
   const list = ranked(city);
-  const want = saves.filter((s) => s.city === city && s.score == null);
+  const want = saves.filter((s) => s.city === city);
+  const elsewhere = saves.length - want.length;
+  const otherCity = city === 'sf' ? 'nyc' : 'sf';
   const [refreshing, setRefreshing] = useState(false);
   const pull = async () => {
     setRefreshing(true);
@@ -56,6 +58,13 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
         <T s="soft" size={13.5} style={{ paddingHorizontal: 22, paddingBottom: 4, lineHeight: 20 }}>
           Nothing saved in {CITIES[city]} yet. Tap “Want to go” on anything and it lands here.
         </T>
+      ) : null}
+      {elsewhere > 0 ? (
+        <Touch onPress={() => setCity(otherCity)} style={{ paddingHorizontal: 22, paddingBottom: 8 }}>
+          <T s="med" size={13} c={colors.plum}>
+            {elsewhere} more saved in {CITIES[otherCity]} →
+          </T>
+        </Touch>
       ) : null}
       {want.map((w) => (
         <Touch key={w.id} onPress={() => onRank(w.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#ebe6df' }}>

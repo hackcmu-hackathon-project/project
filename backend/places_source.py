@@ -126,6 +126,14 @@ EXCLUDE = (
 #: Phrases that mean the place no longer exists.
 DEFUNCT = ("was a ", "was an ", "was the ", "former", "demolished", "closed in", "defunct")
 
+#: Articles about events, not places you can go.
+EVENTS = (
+    "earthquake", "fire of", "riot", "massacre", "disaster", "terrorist", "attack on",
+    "protest", "epidemic", "pandemic", "crash", "shooting", "bombing", "blackout",
+    "took place", "was held", "is an annual event", "is a festival held",
+    "world's fair", "exposition of", "olympics", "election",
+)
+
 DURATION = {"Outdoors": 90, "Culture": 90, "Landmark": 45, "Music": 120, "Nightlife": 120, "Sports": 180, "Shop": 60}
 PRICE = {"Outdoors": 0, "Landmark": 0, "Culture": 2, "Music": 3, "Nightlife": 2, "Sports": 3, "Shop": 1}
 
@@ -208,6 +216,11 @@ def keep(page: dict) -> bool:
     # mention schools, stations and companies for places that are none of those.
     opening = extract[:220].lower()
     if any(x in opening for x in EXCLUDE):
+        return False
+    if any(x in opening for x in EVENTS) or any(x in title for x in EVENTS):
+        return False
+    # "1906 San Francisco earthquake", "1964 World's Fair" — a leading year means an event.
+    if title[:4].isdigit():
         return False
     if any(d in extract[:160].lower() for d in DEFUNCT):
         return False

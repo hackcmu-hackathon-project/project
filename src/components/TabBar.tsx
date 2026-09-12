@@ -13,6 +13,7 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
       <Touch
         key={key}
         onPress={() => onTab(key)}
+        label={label}
         style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: on ? colors.ink : 'transparent' }}
       >
         <T s="med" size={13} c={on ? '#fff' : colors.muted}>{label}</T>
@@ -42,6 +43,7 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
         {item('list', 'Lists')}
         <Touch
           onPress={onAdd}
+          label="Rank something"
           style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.plum, alignItems: 'center', justifyContent: 'center', marginVertical: -2 }}
         >
           <T size={24} c="#fff" style={{ lineHeight: 27 }}>＋</T>

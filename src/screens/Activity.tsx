@@ -25,7 +25,7 @@ export function Activity({
   onOpenPerson: (sub: string) => void;
 }) {
   const { token } = useAuth();
-  const { refresh, toggleSave, isSaved } = useStore();
+  const { refresh, toggleSave, isSaved, myScore } = useStore();
   const [data, setData] = useState<ActivityData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -105,6 +105,7 @@ export function Activity({
   const item = toItem(data.item);
   const [bg, fg] = scoreColors(data.score);
   const saved = isSaved(item.id);
+  const mine = myScore(item.id);
 
   return (
     <ScrollView contentContainerStyle={{ paddingTop: top + 8, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
@@ -152,12 +153,21 @@ export function Activity({
       </View>
 
       <Row style={{ paddingHorizontal: 22, paddingTop: 14, gap: 10 }}>
-        <Touch
-          onPress={() => toggleSave(item.id)}
-          style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: saved ? colors.sunken : colors.ink }}
-        >
-          <T s="med" size={13} c={saved ? colors.muted : '#fff'}>{saved ? '✓ On your list' : 'Want to go'}</T>
-        </Touch>
+        {mine != null ? (
+          <Touch
+            onPress={() => onOpenItem(item.id)}
+            style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: colors.sunken }}
+          >
+            <T s="med" size={13} c={colors.muted}>You ranked it {mine.toFixed(1)}</T>
+          </Touch>
+        ) : (
+          <Touch
+            onPress={() => toggleSave(item.id)}
+            style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: saved ? colors.sunken : colors.ink }}
+          >
+            <T s="med" size={13} c={saved ? colors.muted : '#fff'}>{saved ? '✓ On your want-to-go' : 'Want to go'}</T>
+          </Touch>
+        )}
       </Row>
 
       <Eyebrow style={{ paddingHorizontal: 22, paddingTop: 28, paddingBottom: 8 }}>

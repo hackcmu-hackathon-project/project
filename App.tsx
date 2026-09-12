@@ -17,6 +17,7 @@ import { Profile } from './src/screens/Profile';
 import { Detail } from './src/screens/Detail';
 import { Rank } from './src/screens/Rank';
 import { SignIn } from './src/screens/SignIn';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { People } from './src/screens/People';
 import { Activity } from './src/screens/Activity';
 import { Person } from './src/screens/Person';
@@ -154,9 +155,11 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <Frame>
-        <AuthProvider>
-          <Gate />
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <Gate />
+          </AuthProvider>
+        </ErrorBoundary>
       </Frame>
     </SafeAreaProvider>
   );

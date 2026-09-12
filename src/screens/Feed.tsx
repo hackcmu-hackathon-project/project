@@ -20,7 +20,7 @@ export function Feed({
   onFindPeople: () => void;
   onOpenPerson: (sub: string) => void;
 }) {
-  const { feed, connection, toggleSave, react, refresh, feedScope, setFeedScope } = useStore();
+  const { feed, connection, toggleSave, react, refresh, feedScope, setFeedScope, myScore } = useStore();
   const [refreshing, setRefreshing] = useState(false);
   const pull = async () => {
     setRefreshing(true);
@@ -139,11 +139,21 @@ export function Feed({
               <Touch onPress={() => open(f)} style={{ paddingVertical: 6, paddingHorizontal: 4 }}>
                 <T s="soft" size={13}>{f.comments ? `${f.comments} comment${f.comments === 1 ? '' : 's'}` : 'Comment'}</T>
               </Touch>
-              <Touch onPress={() => toggleSave(item.id)} style={{ paddingVertical: 6, paddingLeft: 10 }}>
-                <T s="med" size={13} c={f.saved ? colors.muted : colors.plum}>
-                  {f.saved ? '✓ Saved' : 'Want to go'}
-                </T>
-              </Touch>
+              {myScore(item.id) != null ? (
+                <Touch onPress={() => onOpenItem(item.id)} style={{ paddingVertical: 6, paddingLeft: 10 }} label="Your ranking">
+                  <T s="med" size={13} c={colors.muted}>You gave it {myScore(item.id)!.toFixed(1)}</T>
+                </Touch>
+              ) : (
+                <Touch
+                  onPress={() => toggleSave(item.id)}
+                  style={{ paddingVertical: 6, paddingLeft: 10 }}
+                  label={f.saved ? 'Remove from want to go' : 'Add to want to go'}
+                >
+                  <T s="med" size={13} c={f.saved ? colors.muted : colors.plum}>
+                    {f.saved ? '✓ Want to go' : 'Want to go'}
+                  </T>
+                </Touch>
+              )}
             </Row>
           </View>
         );
