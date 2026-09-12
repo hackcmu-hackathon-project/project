@@ -58,7 +58,7 @@ export function Explore({ top, onOpen }: { top: number; onOpen: (id: number) => 
       <OfflineBanner connection={connection} onRetry={refresh} />
 
       <Touch onPress={() => onOpen(top1.id)} style={{ marginHorizontal: 22 }}>
-        <Photo uri={top1.photo} radius={radius.xxl} style={{ padding: 22, minHeight: 220, justifyContent: 'flex-end' }}>
+        <Photo uri={top1.photo} label={top1.title} radius={radius.xxl} style={{ padding: 22, minHeight: 220, justifyContent: 'flex-end' }}>
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, backgroundColor: 'rgba(20,17,15,0.42)' }} />
           <Eyebrow style={{ color: colors.plumSoft, marginBottom: 8 }}>Top ranked by friends</Eyebrow>
           <T s="serif" size={28} c="#fff" style={{ lineHeight: 31 }}>{top1.title}</T>
@@ -117,7 +117,7 @@ export function Explore({ top, onOpen }: { top: number; onOpen: (id: number) => 
           onPress={() => onOpen(t.id)}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 13, borderTopWidth: 1, borderTopColor: '#ebe6df' }}
         >
-          <Photo uri={t.photoThumb ?? t.photo} radius={10} style={{ width: 56, height: 56 }} />
+          <Photo uri={t.photoThumb ?? t.photo} label={t.title} radius={10} style={{ width: 56, height: 56 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <T s="med" size={15} style={{ lineHeight: 19 }}>{t.title}</T>
             <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(t)}</T>

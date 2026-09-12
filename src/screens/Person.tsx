@@ -128,7 +128,7 @@ export function Person({
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 13, borderTopWidth: 1, borderTopColor: '#ebe6df' }}
                 >
                   <T s="serif" size={20} c={colors.faint} style={{ width: 22, textAlign: 'right' }}>{i + 1}</T>
-                  <Photo uri={item.photoThumb ?? item.photo} radius={10} style={{ width: 52, height: 52 }} />
+                  <Photo uri={item.photoThumb ?? item.photo} label={item.title} radius={10} style={{ width: 52, height: 52 }} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <T s="med" size={15} style={{ lineHeight: 19 }}>{item.title}</T>
                     <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(item)}</T>

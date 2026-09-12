@@ -55,6 +55,8 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 | `GET /api/items?city=&category=&q=` | the catalogue |
 | `POST /api/items` | add a place (sf/nyc only); a photo is resolved for it on the way in |
 | `GET /api/categories` | the fixed category list with counts |
+| `POST /api/items/{id}/photo` | upload your own photo (multipart, ≤8 MB) |
+| `GET /api/items/{id}/photo` | serve it, immutably cached |
 | `DELETE /api/items/{id}` | remove a place you added, if nobody has ranked it |
 | `GET /api/saves`, `PUT/DELETE /api/saves/{id}` | your want-to-go list (409 if you've ranked it) |
 | `GET /api/activity/{sub}/{item}` | one person's ranking with its reactions and comments |
@@ -85,6 +87,7 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 | `saves` | want-to-go, `{ sub, item_id }` |
 | `reactions` | one emoji per person per post, `{ actor, post: "sub#item", emoji }` |
 | `comments` | `{ post, author, text, created_at }` |
+| `photos.*` | GridFS bucket for uploaded photos, keyed by `metadata.item_id` |
 
 ## What you can do in the app
 
@@ -161,7 +164,14 @@ Two cities, about a hundred things to do in each, plus a hand-written core.
   from [Openverse](https://openverse.org) (openly licensed, no API key). Credit
   and license travel with the URL and are shown on the detail screen.
 * Anything missing, you add in the app: **＋ → Add a new place** writes to the
-  catalogue for everyone and resolves a photo on the way in.
+  catalogue for everyone and resolves a photo on the way in — or you pick your
+  own from the camera roll, which is also how you replace a bad photo on any
+  existing place (**a place → Use your own photo instead**).
+
+Uploaded photos are re-encoded server-side — EXIF rotation honoured, long edge
+capped at 1600px, JPEG at quality 82 — and stored in GridFS, so the whole stack
+still needs only a MongoDB connection string. A place with no photo shows a
+monogram on the hatched placeholder rather than an empty box.
 
 **Ids are stable and partitioned**: 1-99 is the hand-written seed, 100-999,999 is
 whatever people add in the app, and 1,000,000+ is `1,000,000 + Wikipedia page id`.

@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import people, photos, ranking, social
+from . import people, photos, ranking, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -308,6 +308,50 @@ async def create_item(
 # --------------------------------------------------------------------- rankings
 
 
+@router.post("/items/{item_id}/photo", response_model=Item)
+async def upload_item_photo(
+    item_id: int,
+    file: UploadFile = File(...),
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Attach your own photo to a place. Replaces whatever was there."""
+    await ranking.item_or_404(db, item_id)
+    if file.content_type not in uploads.ACCEPTED:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, f"{file.content_type} isn't a supported image")
+
+    raw = await file.read()
+    if len(raw) > uploads.MAX_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "That image is over 8 MB")
+
+    await uploads.store(db, item_id, raw, user.sub)
+    person = await _touch_user(db, user)
+    # A cache-busting suffix so a replaced photo doesn't keep serving the old one.
+    url = f"/api/items/{item_id}/photo?v={int(_now().timestamp())}"
+    await db.items.update_one(
+        {"id": item_id},
+        {
+            "$set": {
+                "photo_url": url,
+                "photo_thumb": url,
+                "photo_credit": person.get("name", "A Rove user"),
+                "photo_license": "",
+                "photo_provider": "Rove",
+                "photo_source_url": None,
+            }
+        },
+    )
+    return await ranking.item_or_404(db, item_id)
+
+
+@router.get("/items/{item_id}/photo")
+async def get_item_photo(item_id: int, db: AsyncIOMotorDatabase = Depends(get_db)):
+    data = await uploads.read(db, item_id)
+    if data is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No uploaded photo")
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000"})
+
+
 @router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_item(
     item_id: int,
@@ -324,6 +368,7 @@ async def delete_item(
         raise HTTPException(status.HTTP_409_CONFLICT, "Somebody has ranked this — it stays")
     await db.items.delete_one({"id": item_id})
     await db.saves.delete_many({"item_id": item_id})
+    await uploads.remove(db, item_id)
 
 
 @router.get("/rankings")

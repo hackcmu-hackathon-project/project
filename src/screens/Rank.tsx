@@ -4,12 +4,13 @@ import { CATEGORIES, colors, font, radius, scoreColors, fmtScore, TIERS, TIER_OR
 import { CITIES, CityKey, meta } from '../data';
 import { RankState } from '../api';
 import { CityChips, Eyebrow, Photo, Row, T, Touch } from '../components/ui';
+import { PickedPhoto, pickPhoto } from '../photoPicker';
 import { useStore } from '../store';
 
 type Step = 'pick' | 'new' | 'tier' | 'compare' | 'done';
 
 export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; onFinish: () => void }) {
-  const { city, setCity, items, wants, rankStart, rankCompare, saveNote, createItem } = useStore();
+  const { city, setCity, items, wants, rankStart, rankCompare, saveNote, createItem, uploadPhoto } = useStore();
   const [step, setStep] = useState<Step>(seedId ? 'tier' : 'pick');
   const [newId, setNewId] = useState<number | null>(seedId ?? null);
   const [state, setState] = useState<RankState | null>(null);
@@ -26,6 +27,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
     bestTime: string;
     city: CityKey;
   }>({ title: '', hood: '', category: 'Outdoors', note: '', tip: '', bestTime: '', city });
+  const [picked, setPicked] = useState<PickedPhoto | null>(null);
 
   const newItem = items.find((i) => i.id === newId) ?? state?.item ?? null;
   const candidates = useMemo(
@@ -99,7 +101,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
             onPress={() => { setNewId(c.id); setStep('tier'); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#ebe6df' }}
           >
-            <Photo uri={c.photoThumb ?? c.photo} radius={10} style={{ width: 48, height: 48 }} />
+            <Photo uri={c.photoThumb ?? c.photo} label={c.title} radius={10} style={{ width: 48, height: 48 }} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <T s="med" size={15} style={{ lineHeight: 19 }}>{c.title}</T>
               <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(c)}</T>
@@ -149,6 +151,32 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           It joins the catalogue for everyone, and we’ll find a photo for it.
         </T>
         <View style={{ paddingHorizontal: 22 }}>
+          <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Photo</Eyebrow>
+          <Touch
+            onPress={async () => setPicked((await pickPhoto()) ?? picked)}
+            label="Choose a photo"
+            style={{ marginBottom: 16, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.line }}
+          >
+            <Photo uri={picked?.uri} label={draft.title || '?'} style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}>
+              {!picked ? (
+                <View style={{ alignItems: 'center' }}>
+                  <T s="med" size={14}>Add a photo</T>
+                  <T s="soft" size={12} style={{ marginTop: 3 }}>Optional — we'll find one if you don't</T>
+                </View>
+              ) : null}
+            </Photo>
+          </Touch>
+          {picked ? (
+            <Row style={{ gap: 14, marginTop: -8, marginBottom: 14 }}>
+              <Touch onPress={async () => setPicked((await pickPhoto()) ?? picked)}>
+                <T s="med" size={13} c={colors.plum}>Choose another</T>
+              </Touch>
+              <Touch onPress={() => setPicked(null)}>
+                <T s="soft" size={13}>Remove</T>
+              </Touch>
+            </Row>
+          ) : null}
+
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Which city</Eyebrow>
           <View style={{ marginBottom: 16 }}>
             <CityChips city={draft.city} onChange={(c) => setDraft((d) => ({ ...d, city: c }))} />
@@ -193,6 +221,14 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                   tip: draft.tip.trim(),
                   best_time: draft.bestTime.trim(),
                 });
+                if (picked) {
+                  // A failed upload shouldn't lose the place they just added.
+                  try {
+                    await uploadPhoto(created.id, picked);
+                  } catch {
+                    setError('Added, but the photo didn’t upload.');
+                  }
+                }
                 // Rank it in the city it was added to, not the one you were browsing.
                 if (draft.city !== city) setCity(draft.city);
                 setNewId(created.id);
@@ -254,12 +290,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
         <T s="soft" size={13} style={{ paddingHorizontal: 22 }}>Comparison {state.comparison}</T>
         <T s="serif" size={30} style={{ paddingHorizontal: 22, paddingTop: 2, paddingBottom: 24 }}>Which was better?</T>
         <View style={{ flex: 1, paddingHorizontal: 22, gap: 12, opacity: busy ? 0.55 : 1 }}>
-          <Contender photo={newItem.photo ?? newItem.photoThumb} onPress={() => !busy && compare('new')}>
+          <Contender photo={newItem.photo ?? newItem.photoThumb} label={newItem.title} onPress={() => !busy && compare('new')}>
             <Eyebrow style={{ color: colors.plum, fontSize: 11, marginBottom: 6 }}>New</Eyebrow>
             <T s="serif" size={22} style={{ lineHeight: 25 }}>{newItem.title}</T>
           </Contender>
           <T s="soft" size={12} style={{ textAlign: 'center', color: colors.faint }}>vs</T>
-          <Contender photo={old.photo ?? old.photoThumb} onPress={() => !busy && compare('opponent')}>
+          <Contender photo={old.photo ?? old.photoThumb} label={old.title} onPress={() => !busy && compare('opponent')}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 6 }}>
               <Eyebrow style={{ color: colors.soft, fontSize: 11 }}>Ranked #{state.opponentRank ?? '–'}</Eyebrow>
               <T s="semi" size={13}>{fmtScore(state.opponentScore)}</T>
@@ -317,11 +353,11 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   );
 }
 
-function Contender({ children, onPress, photo }: any) {
+function Contender({ children, onPress, photo, label }: any) {
   return (
     <Touch onPress={onPress} style={{ flex: 1, minHeight: 190 }}>
       <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' }}>
-        <Photo uri={photo} style={{ flex: 1, minHeight: 110 }} />
+        <Photo uri={photo} label={label} style={{ flex: 1, minHeight: 110 }} />
         <View style={{ padding: 16 }}>{children}</View>
       </View>
     </Touch>

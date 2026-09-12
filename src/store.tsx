@@ -43,6 +43,8 @@ type Ctx = {
   myScore: (itemId: number) => number | null;
   /** Drop your ranking of an item; the rest of that tier re-spreads on the server. */
   unrank: (itemId: number) => Promise<void>;
+  /** Attach a photo you picked to a place, replacing whatever was there. */
+  uploadPhoto: (itemId: number, file: { uri: string; name: string; type: string }) => Promise<void>;
   /** Add a place that isn't in the catalogue yet. Returns it once the API has it. */
   createItem: (body: {
     city: CityKey;
@@ -292,6 +294,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [token]
   );
 
+  const uploadPhoto = useCallback(
+    async (itemId: number, file: { uri: string; name: string; type: string }) => {
+      const updated = await api.uploadPhoto(token, itemId, file);
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...updated, tier: i.tier, score: i.score } : i)));
+      setFeed((prev) => prev.map((f) => (f.item.id === itemId ? { ...f, item: { ...f.item, ...updated } } : f)));
+    },
+    [token]
+  );
+
   const react = useCallback(
     async (owner: string, itemId: number, emoji: string) => {
       if (!online) return;
@@ -345,6 +356,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       myScore: (id: number) => items.find((i) => i.id === id)?.score ?? null,
       unrank,
       createItem,
+      uploadPhoto,
       react,
       isSaved: (id: number) => saves.some((s) => s.id === id),
       wants,
@@ -353,7 +365,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       saveNote,
       refresh,
     }),
-    [me, city, items, feed, connection, feedScope, ranked, saves, toggleSave, unrank, createItem, react, wants, rankStart, rankCompare, saveNote, refresh]
+    [me, city, items, feed, connection, feedScope, ranked, saves, toggleSave, unrank, createItem, uploadPhoto, react, wants, rankStart, rankCompare, saveNote, refresh]
   );
 
   return <C.Provider value={value}>{children}</C.Provider>;
