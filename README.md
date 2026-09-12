@@ -5,8 +5,10 @@ itineraries* — you log something you did, say roughly how it went, then answer
 head-to-head comparisons. Scores are relative, so a 9.4 means something: you put it
 above everything else.
 
-Two cities, on purpose: **San Francisco** and **New York**. That constraint is enforced
-end to end — the API's `City` type is `"sf" | "nyc"`, so nothing else can be created.
+**San Francisco**, **New York** and **Pittsburgh**. Cities are one list —
+`CITY_NAMES` on the server, `CITY_KEYS` in the app, generated from
+`seed_data.json` — so adding another is data plus neighborhood centroids and
+sweep points, not a rewrite.
 
 ```
 .
@@ -244,17 +246,22 @@ dev account — the social graph still works, against the seeded accounts.
 
 ## The catalogue
 
-Two cities, about a hundred things to do in each, plus a hand-written core.
+Three cities — San Francisco, New York and Pittsburgh — with a hand-written core
+and the rest imported.
 
 * `backend/seed_data.json` — cities and ~16 curated items, each with a real
   description, a tip and a best time. Regenerate the app's offline copy with
   `npm run gen:seed`.
-* `python fetch_places.py --per-city 100` — imports well-known places from
+* `python fetch_places.py --per-city 100 [--city sf,nyc]` — imports well-known places from
   Wikipedia: geosearch around each city, filtered to things you'd actually go do
   (not events, not stations, not offices) and ranked by how many language
   editions carry the article. Neighborhoods come from coordinates, photos from
   the article's lead image, and article payloads are cached in
   `.wiki_cache.json` so re-running with different filters costs nothing.
+* `python prune_places.py` — re-judges the imported catalogue against today's
+  filters and trims each city to its depth, keeping the best-known. Runs of the
+  importer only ever add, so this is how a rule change takes effect. Anything
+  somebody has ranked or saved is never removed.
 * `python fetch_photos.py` — fills in photos for anything still missing one,
   from [Openverse](https://openverse.org) (openly licensed, no API key). Credit
   and license travel with the URL and are shown on the detail screen.
