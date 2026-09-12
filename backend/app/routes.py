@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import agent, gemini_planner, itinerary, people, photos, ranking, social, uploads
+from . import agent, ranking_photos, gemini_planner, itinerary, people, photos, ranking, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -28,6 +28,7 @@ from .models import (
 )
 
 router = APIRouter(prefix="/api")
+router.include_router(ranking_photos.router)
 
 CITIES = CITY_NAMES
 
@@ -510,6 +511,7 @@ async def get_activity(
         tier=row["tier"],
         score=row["score"],
         note=row.get("note") or "",
+        photo_urls=ranking_photos.photo_urls(row),
         when=_ago(row.get("updated_at")),
         rank=rank,
         total=len(city_rows),

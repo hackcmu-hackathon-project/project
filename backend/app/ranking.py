@@ -7,7 +7,7 @@ new entry landed.
 
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -30,10 +30,10 @@ async def item_or_404(db: AsyncIOMotorDatabase, item_id: int) -> Item:
 async def ranked_items(db: AsyncIOMotorDatabase, sub: str, city: str | None = None) -> list[dict]:
     """The caller's rankings, best first, each joined to its item."""
     match: dict = {"sub": sub}
-    rows = await db.rankings.find(match, {"_id": 0}).sort("score", -1).to_list(500)
+    rows = await db.rankings.find(match, {"_id": 0}).sort([("score", -1), ("position", 1), ("item_id", 1)]).to_list(None)
     if not rows:
         return []
-    items = await db.items.find({"id": {"$in": [r["item_id"] for r in rows]}}, {"_id": 0}).to_list(500)
+    items = await db.items.find({"id": {"$in": [r["item_id"] for r in rows]}}, {"_id": 0}).to_list(None)
     by_id = {i["id"]: i for i in items}
     out = [{**r, "item": by_id[r["item_id"]]} for r in rows if r["item_id"] in by_id]
     if city:
@@ -46,31 +46,30 @@ async def _tier_pool(db: AsyncIOMotorDatabase, sub: str, city: str, tier: str, e
     return [r["item_id"] for r in rows if r["tier"] == tier and r["item_id"] != exclude]
 
 
-async def _commit(db: AsyncIOMotorDatabase, sub: str, item: Item, tier: str, pos: int) -> RankState:
-    """Insert at `pos` in the tier, then respread the whole tier over its band."""
-    pool = await _tier_pool(db, sub, item.city, tier, item.id)
-    pool.insert(min(pos, len(pool)), item.id)
-
+async def _rescore(db, sub: str, tier: str, pool: list[int]) -> dict[int, float]:
+    if not pool:
+        return {}
     low, high = TIER_BANDS[tier]
-    step = (high - low) / (len(pool) - 1) if len(pool) > 1 else 0.0
-    scores = {
-        item_id: round(high - step * idx, 1) if len(pool) > 1 else round((low + high) / 2, 1)
-        for idx, item_id in enumerate(pool)
-    }
+    scores = {id: round(high - (high - low) * i / (len(pool) - 1), 1)
+              if len(pool) > 1 else round((low + high) / 2, 1) for i, id in enumerate(pool)}
+    await db.rankings.bulk_write([
+        UpdateOne({'sub': sub, 'item_id': id}, {
+            '$set': {'tier': tier, 'score': scores[id], 'position': i, 'updated_at': _now()},
+            '$setOnInsert': {'created_at': _now()},
+        }, upsert=True) for i, id in enumerate(pool)
+    ])
+    return scores
 
-    await db.rankings.bulk_write(
-        [
-            UpdateOne(
-                {"sub": sub, "item_id": item_id},
-                {
-                    "$set": {"tier": tier, "score": score, "updated_at": _now()},
-                    "$setOnInsert": {"created_at": _now()},
-                },
-                upsert=True,
-            )
-            for item_id, score in scores.items()
-        ]
-    )
+
+async def _commit(db: AsyncIOMotorDatabase, sub: str, item: Item, tier: str, pos: int) -> RankState:
+    previous = await db.rankings.find_one({'sub': sub, 'item_id': item.id})
+    pool = await _tier_pool(db, sub, item.city, tier, item.id)
+    pool.insert(max(0, min(pos, len(pool))), item.id)
+    scores = await _rescore(db, sub, tier, pool)
+    if previous and previous['tier'] != tier:
+        old = await _tier_pool(db, sub, item.city, previous['tier'], item.id)
+        await _rescore(db, sub, previous['tier'], old)
+    await db.rank_sessions.delete_many({'sub': sub})
 
     # Having been somewhere retires it from "want to go".
     await db.saves.delete_one({"_id": f"{sub}#{item.id}"})
@@ -137,7 +136,7 @@ async def start(db: AsyncIOMotorDatabase, sub: str, item_id: int, tier: str) -> 
 
 
 async def compare(db: AsyncIOMotorDatabase, sub: str, session_id: str, winner: str) -> RankState:
-    session = await db.rank_sessions.find_one({"_id": session_id, "sub": sub})
+    session = await db.rank_sessions.find_one({"_id": session_id, "sub": sub, "created_at": {"$gt": _now() - timedelta(hours=1)}})
     if not session:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Ranking session expired — start again")
 
@@ -160,20 +159,9 @@ async def unrank(db: AsyncIOMotorDatabase, sub: str, item_id: int) -> None:
     row = await db.rankings.find_one_and_delete({"sub": sub, "item_id": item_id})
     if not row:
         return
+    await db.rank_sessions.delete_many({"sub": sub})
     item = await db.items.find_one({"id": item_id}, {"_id": 0})
     if not item:
         return
     pool = await _tier_pool(db, sub, item["city"], row["tier"], item_id)
-    if not pool:
-        return
-    low, high = TIER_BANDS[row["tier"]]
-    step = (high - low) / (len(pool) - 1) if len(pool) > 1 else 0.0
-    await db.rankings.bulk_write(
-        [
-            UpdateOne(
-                {"sub": sub, "item_id": pid},
-                {"$set": {"score": round(high - step * idx, 1) if len(pool) > 1 else round((low + high) / 2, 1)}},
-            )
-            for idx, pid in enumerate(pool)
-        ]
-    )
+    await _rescore(db, sub, row['tier'], pool)

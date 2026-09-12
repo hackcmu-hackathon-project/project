@@ -137,6 +137,7 @@ class ReactionSet(BaseModel):
 
 
 class Activity(BaseModel):
+    photo_urls: list[str] = Field(default_factory=list)
     """One person's ranking of one item, plus everything attached to it."""
 
     owner_sub: str
