@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Animated, ScrollView, TextInput, View } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { ScrollView, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { api, ItineraryRequest, SavedTrip } from '../api';
 import { useAuth } from '../auth';
@@ -30,7 +30,7 @@ const pretty = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 /** Planning page: the trips you've saved, and the form that makes a new one. */
-/** A saved trip. Swipe it left to delete. */
+/** A saved trip, with a quiet way to throw it away. */
 function TripRow({
   trip,
   past,
@@ -48,53 +48,28 @@ function TripRow({
     ` · ${trip.days.reduce((n, d) => n + d.stops.length, 0)} stops`;
 
   return (
-    <Swipeable
-      overshootRight={false}
-      rightThreshold={48}
-      renderRightActions={(progress) => (
-        <Animated.View
-          style={{
-            opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-            justifyContent: 'center',
-          }}
-        >
-          <Touch
-            onPress={onDelete}
-            label={`Delete ${trip.title}`}
-            style={{
-              backgroundColor: colors.plum,
-              borderRadius: radius.lg,
-              marginLeft: 10,
-              paddingHorizontal: 22,
-              height: '100%',
-              justifyContent: 'center',
-            }}
-          >
-            <T s="med" size={13.5} c="#fff">Delete</T>
-          </Touch>
-        </Animated.View>
-      )}
+    <Row
+      style={{
+        paddingLeft: 16,
+        paddingRight: 8,
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.line,
+        opacity: past ? 0.55 : 1,
+      }}
     >
-      <Touch
-        onPress={onOpen}
-        style={{
-          padding: 16,
-          borderRadius: radius.lg,
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: colors.line,
-          flexDirection: 'row',
-          alignItems: 'center',
-          opacity: past ? 0.55 : 1,
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <T s="med" size={15}>{trip.title}</T>
-          <T s="soft" size={12.5} style={{ marginTop: 3 }}>{span}</T>
-        </View>
+      <Touch onPress={onOpen} style={{ flex: 1, paddingVertical: 16 }}>
+        <T s="med" size={15}>{trip.title}</T>
+        <T s="soft" size={12.5} style={{ marginTop: 3 }}>{span}</T>
+      </Touch>
+      <Touch onPress={onDelete} label={`Delete ${trip.title}`} style={{ padding: 10 }}>
+        <Ionicons name="trash-outline" size={17} color={colors.faint} />
+      </Touch>
+      <Touch onPress={onOpen} style={{ paddingVertical: 16, paddingLeft: 4, paddingRight: 6 }}>
         <T c={colors.faint} size={16}>›</T>
       </Touch>
-    </Swipeable>
+    </Row>
   );
 }
 

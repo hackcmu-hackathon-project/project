@@ -22,18 +22,26 @@ export function TabBar({
   const item = (key: TabKey, label: string) => {
     const on = tab === key;
     return (
+      // A filled pill can't fit its share alongside the two round buttons — it
+      // grows with the word and crowds them. A dot marks the active tab instead.
       <View key={key} style={{ flex: 1, alignItems: 'center' }}>
         <Touch
           onPress={() => onTab(key)}
           label={label}
-          style={{
-            paddingHorizontal: 12,
-            paddingVertical: 9,
-            borderRadius: radius.pill,
-            backgroundColor: on ? colors.ink : 'transparent',
-          }}
+          style={{ paddingHorizontal: 4, paddingVertical: 8, alignItems: 'center' }}
         >
-          <T s="med" size={13} c={on ? '#fff' : colors.muted}>{label}</T>
+          <T s={on ? 'semi' : 'med'} size={12.5} numberOfLines={1} c={on ? colors.ink : colors.muted}>
+            {label}
+          </T>
+          <View
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: 2,
+              marginTop: 4,
+              backgroundColor: on ? colors.plum : 'transparent',
+            }}
+          />
         </Touch>
       </View>
     );
@@ -44,9 +52,9 @@ export function TabBar({
       onPress={onPress}
       label={label}
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.plum,
@@ -86,7 +94,9 @@ export function TabBar({
       >
         {item('feed', 'Feed')}
         {item('list', 'Lists')}
-        <Row style={{ gap: 8, marginHorizontal: 2 }}>
+        {/* Two slots wide, so the pair sits centred and the gaps either side
+            match the gaps between the labels. */}
+        <Row style={{ flex: 2, gap: 6, justifyContent: 'center' }}>
           {circle('＋', 'Rank something', onAdd, 24)}
           {circle('✦', 'Ask the assistant', () => onTab('agent'), 19, tab === 'agent')}
         </Row>
