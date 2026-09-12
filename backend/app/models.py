@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 Tier = Literal["loved", "liked", "okay"]
 #: Rove supports exactly two cities.
 City = Literal["sf", "nyc"]
-Category = Literal["Food", "Drink", "Outdoors", "Culture", "Music", "Landmark", "Shop"]
+#: Rove is about things to *do*. Restaurants and bars are Beli's job.
+CATEGORIES = ("Outdoors", "Culture", "Landmark", "Music", "Nightlife", "Sports", "Shop")
+Category = Literal["Outdoors", "Culture", "Landmark", "Music", "Nightlife", "Sports", "Shop"]
 
 #: Score band for each tier. A tier's members are spread evenly across its band.
 TIER_BANDS: dict[str, tuple[float, float]] = {
@@ -31,6 +33,14 @@ class Item(BaseModel):
     tip: str = ""
     tags: list[str] = Field(default_factory=list)
     img: str = "photo"
+    # Resolved once from Openverse; see app/photos.py.
+    photo_url: str | None = None
+    photo_thumb: str | None = None
+    photo_credit: str | None = None
+    photo_license: str | None = None
+    photo_source_url: str | None = None
+    #: Set on places imported from Wikipedia.
+    wikipedia_url: str | None = None
     created_by: str | None = None
 
 
@@ -105,6 +115,43 @@ class ProfileUpdate(BaseModel):
     bio: str | None = None
 
 
+class Comment(BaseModel):
+    id: str
+    author_sub: str
+    author_name: str
+    author_color: str = "#8a2d6e"
+    text: str
+    created_at: datetime
+    mine: bool = False
+
+
+class CommentCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=600)
+
+
+class ReactionSet(BaseModel):
+    emoji: str = Field(min_length=1, max_length=8)
+
+
+class Activity(BaseModel):
+    """One person's ranking of one item, plus everything attached to it."""
+
+    owner_sub: str
+    owner_name: str
+    owner_handle: str
+    owner_color: str
+    item: Item
+    tier: Tier
+    score: float
+    note: str = ""
+    when: str = ""
+    rank: int | None = None
+    total: int | None = None
+    reactions: dict[str, int] = Field(default_factory=dict)
+    my_reaction: str | None = None
+    comments: list[Comment] = Field(default_factory=list)
+
+
 class FeedEntry(BaseModel):
     id: str
     user_sub: str | None = None
@@ -120,3 +167,7 @@ class FeedEntry(BaseModel):
     comments: int = 0
     note: str = ""
     img: str = "photo"
+    reactions: dict[str, int] = Field(default_factory=dict)
+    my_reaction: str | None = None
+    saved: bool = False
+    suggested: bool = False

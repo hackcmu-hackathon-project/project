@@ -34,7 +34,10 @@
     "typecheck": "tsc --noEmit",
     "api": "cd backend && .venv/bin/uvicorn app.main:app --port 8010 --reload",
     "db": "cd backend && docker compose up -d",
-    "gen:seed": "node scripts/gen-seed.mjs"
+    "gen:seed": "node scripts/gen-seed.mjs",
+    "api:seed": "cd backend && .venv/bin/python seed.py --demo-people --dev-user --reset",
+    "api:places": "cd backend && .venv/bin/python fetch_places.py --per-city 100",
+    "api:test": "cd backend && .venv/bin/python smoke_test.py"
   },
   "private": true
 }

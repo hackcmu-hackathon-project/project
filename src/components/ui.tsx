@@ -1,5 +1,5 @@
-import React from 'react';
-import { Platform, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Platform, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, font, radius, scoreColors, fmtScore } from '../theme';
 
@@ -53,6 +53,37 @@ export function Hatch({
       </View>
       {children}
     </View>
+  );
+}
+
+/**
+ * An item's photo, with the hatched placeholder underneath it. The placeholder
+ * shows while the image loads, if it fails, and for items with no photo at all.
+ */
+export function Photo({
+  uri,
+  style,
+  radius: r,
+  children,
+}: {
+  uri?: string | null;
+  style?: StyleProp<ViewStyle>;
+  radius?: number;
+  children?: React.ReactNode;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <Hatch style={[{ borderRadius: r }, style]}>
+      {uri && !failed ? (
+        <Image
+          source={{ uri }}
+          onError={() => setFailed(true)}
+          resizeMode="cover"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+      ) : null}
+      {children}
+    </Hatch>
   );
 }
 

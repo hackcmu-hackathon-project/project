@@ -1,13 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CityKey, FEED as SEED_FEED, ITEMS, Item, itemById } from './data';
+import { CityKey, ITEMS, Item } from './data';
 import { TIERS, Tier } from './theme';
-import { RankState, api, toItem } from './api';
+import { Me, RankState, api, toItem } from './api';
 import { useAuth } from './auth';
 
 export type Connection = 'connecting' | 'online' | 'offline';
 
 export type FeedRow = {
   id: string;
+  userSub: string | null;
   userName: string;
   userColor: string;
   item: Item;
@@ -18,15 +19,34 @@ export type FeedRow = {
   comments: number;
   note: string;
   img: string;
+  reactions: Record<string, number>;
+  myReaction: string | null;
+  saved: boolean;
 };
 
 type Ctx = {
+  /** The signed-in account as the API knows it — created on first call. */
+  me: Me | null;
   city: CityKey;
   setCity: (c: CityKey) => void;
   items: Item[];
   feed: FeedRow[];
   connection: Connection;
+  /** Whose rankings the feed shows. */
+  feedScope: 'following' | 'everyone';
+  setFeedScope: (s: 'following' | 'everyone') => void;
   ranked: (city: CityKey) => Item[];
+  /** Items you saved to "want to go", newest first. */
+  saves: Item[];
+  toggleSave: (itemId: number) => Promise<void>;
+  /** Drop your ranking of an item; the rest of that tier re-spreads on the server. */
+  unrank: (itemId: number) => Promise<void>;
+  /** Add a place that isn't in the catalogue yet. Returns it once the API has it. */
+  createItem: (body: { city: CityKey; title: string; hood: string; category: string; note?: string }) => Promise<Item>;
+  /** Set or clear your reaction on someone's ranking. Tapping the same emoji clears it. */
+  react: (owner: string, itemId: number, emoji: string) => Promise<void>;
+  isSaved: (itemId: number) => boolean;
+  /** Every item in the city you haven't ranked — the pool the rank flow picks from. */
   wants: (city: CityKey) => Item[];
   /** Open a ranking session for an item in a tier. Resolves to the first duel, or straight to a result. */
   rankStart: (itemId: number, tier: Tier) => Promise<RankState>;
@@ -38,46 +58,42 @@ type Ctx = {
 const C = createContext<Ctx>(null as any);
 export const useStore = () => useContext(C);
 
-const localFeed = (items: Item[]): FeedRow[] =>
-  SEED_FEED.map((p) => ({
-    id: p.id,
-    userName: p.friend.name,
-    userColor: p.friend.color,
-    item: items.find((i) => i.id === p.itemId) ?? itemById(p.itemId),
-    score: p.score,
-    action: p.action,
-    time: p.time,
-    likes: p.likes,
-    comments: p.comments,
-    note: p.note,
-    img: p.img,
-  }));
-
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
   const [city, setCity] = useState<CityKey>('sf');
   const [items, setItems] = useState<Item[]>(() => ITEMS.map((i) => ({ ...i })));
-  const [feed, setFeed] = useState<FeedRow[]>(() => localFeed(ITEMS));
+  const [feed, setFeed] = useState<FeedRow[]>([]);
+  const [me, setMe] = useState<Me | null>(null);
+  const [saves, setSaves] = useState<Item[]>([]);
   const [connection, setConnection] = useState<Connection>('connecting');
+  const [feedScope, setFeedScope] = useState<'following' | 'everyone'>('following');
 
   const online = connection === 'online';
 
   /** Pull the catalogue, the caller's rankings, and the feed from the API. */
   const refresh = useCallback(async () => {
     try {
-      const [catalogue, rankings, remoteFeed] = await Promise.all([
+      // /api/me upserts the account — for a brand-new Auth0 user this call is
+      // what creates them, so it has to happen on every launch, not just when
+      // the profile tab is opened.
+      const [profile, catalogue, rankings, remoteFeed, savedItems] = await Promise.all([
+        api.me(token).catch(() => null),
         api.items(token),
         api.rankings(token),
-        api.feed(token),
+        api.feed(token, feedScope),
+        api.saves(token),
       ]);
       const merged = catalogue.map((i) => {
         const r = rankings.find((x) => x.item_id === i.id);
         return r ? { ...i, tier: r.tier, score: r.score } : i;
       });
+      setMe(profile);
       setItems(merged);
+      setSaves(savedItems.map(toItem).map((i) => merged.find((m) => m.id === i.id) ?? i));
       setFeed(
         remoteFeed.map((f) => ({
           id: f.id,
+          userSub: f.user_sub,
           userName: f.user_name,
           userColor: f.user_color,
           item: merged.find((i) => i.id === f.item.id) ?? { ...i0(f.item) },
@@ -88,16 +104,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           comments: f.comments,
           note: f.note,
           img: f.img,
+          reactions: f.reactions ?? {},
+          myReaction: f.my_reaction ?? null,
+          saved: f.saved ?? false,
         }))
       );
       setConnection('online');
     } catch {
       // API down: keep the bundled seed so the app is still usable.
       setConnection('offline');
+      setMe(null);
       setItems(ITEMS.map((i) => ({ ...i })));
-      setFeed(localFeed(ITEMS));
+      setFeed([]);
+      setSaves([]);
     }
-  }, [token]);
+  }, [token, feedScope]);
 
   useEffect(() => {
     refresh();
@@ -209,6 +230,72 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [online, token, refresh, localSession, localCommit, localDuel]
   );
 
+  const toggleSave = useCallback(
+    async (itemId: number) => {
+      if (!online) return;
+      const already = saves.some((s) => s.id === itemId);
+      // Optimistic, so the button responds instantly.
+      setSaves((prev) =>
+        already ? prev.filter((s) => s.id !== itemId) : [items.find((i) => i.id === itemId)!, ...prev]
+      );
+      setFeed((prev) => prev.map((f) => (f.item.id === itemId ? { ...f, saved: !already } : f)));
+      try {
+        if (already) await api.unsave(token, itemId);
+        else await api.save(token, itemId);
+      } catch {
+        refresh();
+      }
+    },
+    [online, saves, items, token, refresh]
+  );
+
+  const unrank = useCallback(
+    async (itemId: number) => {
+      if (!online) return;
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, tier: null, score: null } : i)));
+      try {
+        await api.unrank(token, itemId);
+      } finally {
+        // Removing one ranking rescores its whole tier, so take the server's word for it.
+        refresh();
+      }
+    },
+    [online, token, refresh]
+  );
+
+  const createItem = useCallback(
+    async (body: { city: CityKey; title: string; hood: string; category: string; note?: string }) => {
+      const created = await api.createItem(token, body);
+      setItems((prev) => [...prev, created]);
+      return created;
+    },
+    [token]
+  );
+
+  const react = useCallback(
+    async (owner: string, itemId: number, emoji: string) => {
+      if (!online) return;
+      let clearing = false;
+      setFeed((prev) =>
+        prev.map((f) => {
+          if (f.userSub !== owner || f.item.id !== itemId) return f;
+          const counts = { ...f.reactions };
+          if (f.myReaction) counts[f.myReaction] = Math.max(0, (counts[f.myReaction] ?? 1) - 1);
+          clearing = f.myReaction === emoji;
+          if (!clearing) counts[emoji] = (counts[emoji] ?? 0) + 1;
+          return { ...f, reactions: counts, myReaction: clearing ? null : emoji };
+        })
+      );
+      try {
+        if (clearing) await api.unreact(token, owner, itemId);
+        else await api.react(token, owner, itemId, emoji);
+      } catch {
+        refresh();
+      }
+    },
+    [online, token, refresh]
+  );
+
   const saveNote = useCallback(
     async (itemId: number, note: string) => {
       if (!online || !note.trim()) return;
@@ -223,8 +310,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<Ctx>(
-    () => ({ city, setCity, items, feed, connection, ranked, wants, rankStart, rankCompare, saveNote, refresh }),
-    [city, items, feed, connection, ranked, wants, rankStart, rankCompare, saveNote, refresh]
+    () => ({
+      me,
+      city,
+      setCity,
+      items,
+      feed,
+      connection,
+      feedScope,
+      setFeedScope,
+      ranked,
+      saves,
+      toggleSave,
+      unrank,
+      createItem,
+      react,
+      isSaved: (id: number) => saves.some((s) => s.id === id),
+      wants,
+      rankStart,
+      rankCompare,
+      saveNote,
+      refresh,
+    }),
+    [me, city, items, feed, connection, feedScope, ranked, saves, toggleSave, unrank, createItem, react, wants, rankStart, rankCompare, saveNote, refresh]
   );
 
   return <C.Provider value={value}>{children}</C.Provider>;

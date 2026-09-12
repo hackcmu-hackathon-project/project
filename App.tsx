@@ -18,8 +18,11 @@ import { Detail } from './src/screens/Detail';
 import { Rank } from './src/screens/Rank';
 import { SignIn } from './src/screens/SignIn';
 import { People } from './src/screens/People';
+import { Activity } from './src/screens/Activity';
+import { Person } from './src/screens/Person';
 
-type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number } | { name: 'people' };
+type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number } | { name: 'people' } | { name: 'activity'; owner: string; itemId: number }
+  | { name: 'person'; sub: string };
 
 function Shell() {
   const insets = useSafeAreaInsets();
@@ -30,21 +33,52 @@ function Shell() {
 
   const top = Math.max(insets.top, Platform.OS === 'android' ? RNStatusBar.currentHeight ?? 24 : 24) + 24;
   const openDetail = (id: number) => setScreen({ name: 'detail', id });
+  const openActivity = (owner: string, itemId: number) => setScreen({ name: 'activity', owner, itemId });
+  const openPerson = (sub: string) => setScreen({ name: 'person', sub });
   const goTab = (t: TabKey) => { setTab(t); setScreen({ name: t }); };
   const startRank = (seedId?: number) => { setRankKey((k) => k + 1); setScreen({ name: 'add', seedId }); };
 
   let body: React.ReactNode = null;
   if (screen.name === 'detail') {
-    body = <Detail id={screen.id} top={top - 24} onClose={() => setScreen({ name: tab })} onRank={(id) => startRank(id)} />;
+    body = (
+      <Detail
+        id={screen.id}
+        top={top - 24}
+        onClose={() => setScreen({ name: tab })}
+        onRank={(id) => startRank(id)}
+        onOpenActivity={openActivity}
+      />
+    );
   } else if (screen.name === 'add') {
     body = <Rank key={rankKey} top={top} seedId={screen.seedId} onFinish={() => goTab('list')} />;
   } else if (screen.name === 'feed') {
-    body = <Feed top={top} onOpen={openDetail} />;
+    body = (
+      <Feed
+        top={top}
+        onOpenItem={openDetail}
+        onOpenActivity={openActivity}
+        onOpenPerson={openPerson}
+        onFindPeople={() => setScreen({ name: 'people' })}
+      />
+    );
   } else if (screen.name === 'list') {
     body = <Lists top={top} onOpen={openDetail} onRank={(id) => startRank(id)} />;
+  } else if (screen.name === 'person') {
+    body = <Person top={top} sub={screen.sub} onClose={() => goTab(tab)} onOpenActivity={openActivity} />;
+  } else if (screen.name === 'activity') {
+    body = (
+      <Activity
+        top={top}
+        owner={screen.owner}
+        itemId={screen.itemId}
+        onClose={() => goTab(tab)}
+        onOpenItem={openDetail}
+        onOpenPerson={openPerson}
+      />
+    );
   } else if (screen.name === 'people') {
     // Following someone changes the feed, so re-pull on the way out.
-    body = <People top={top} onClose={() => { refresh(); goTab('profile'); }} />;
+    body = <People top={top} onClose={() => { refresh(); goTab('profile'); }} onOpenPerson={openPerson} />;
   } else if (screen.name === 'explore') {
     body = <Explore top={top} onOpen={openDetail} />;
   } else {
@@ -53,6 +87,7 @@ function Shell() {
         top={top}
         onOpenCity={(c: CityKey) => { setCity(c); goTab('list'); }}
         onFindPeople={() => setScreen({ name: 'people' })}
+        onOpenPerson={openPerson}
       />
     );
   }

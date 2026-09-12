@@ -27,6 +27,9 @@ async def ensure_indexes() -> None:
     await db.users.create_index("handle", unique=True, sparse=True)
     await db.follows.create_index("follower")
     await db.follows.create_index("followee")
+    await db.saves.create_index("sub")
+    await db.reactions.create_index("post")
+    await db.comments.create_index([("post", 1), ("created_at", 1)])
 
 
 async def close_client() -> None:

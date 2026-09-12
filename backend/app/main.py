@@ -4,8 +4,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .db import close_client, ensure_indexes
+from .db import close_client, ensure_indexes, get_db
 from .routes import router
+
+settings = get_settings()
+
+if settings.is_production and not settings.auth_enabled:
+    raise RuntimeError(
+        "ENV=production with no AUTH0_DOMAIN: the API would accept every request "
+        "as the local dev user. Configure Auth0 or unset ENV."
+    )
 
 
 @asynccontextmanager
@@ -13,9 +21,6 @@ async def lifespan(_: FastAPI):
     await ensure_indexes()
     yield
     await close_client()
-
-
-settings = get_settings()
 
 app = FastAPI(
     title="Rove API",
@@ -37,4 +42,15 @@ app.include_router(router)
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "auth": "auth0" if settings.auth_enabled else "open (dev)"}
+    """Liveness plus a real database round-trip, for load balancers to poll."""
+    try:
+        await get_db().command("ping")
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return {
+        "ok": db_ok,
+        "database": "up" if db_ok else "unreachable",
+        "auth": "auth0" if settings.auth_enabled else "open (dev)",
+        "env": settings.env,
+    }

@@ -15,12 +15,19 @@ export type ApiItem = {
   tip: string;
   tags: string[];
   img: string;
+  photo_url: string | null;
+  photo_thumb: string | null;
+  photo_credit: string | null;
+  photo_license: string | null;
+  photo_source_url: string | null;
+  wikipedia_url?: string | null;
 };
 
 export type ApiRanking = { item_id: number; tier: Tier; score: number; note: string | null; item: ApiItem };
 
 export type ApiFeedEntry = {
   id: string;
+  user_sub: string | null;
   user_name: string;
   user_color: string;
   item: ApiItem;
@@ -32,6 +39,36 @@ export type ApiFeedEntry = {
   comments: number;
   note: string;
   img: string;
+  reactions: Record<string, number>;
+  my_reaction: string | null;
+  saved: boolean;
+};
+
+export type Comment = {
+  id: string;
+  author_sub: string;
+  author_name: string;
+  author_color: string;
+  text: string;
+  created_at: string;
+  mine: boolean;
+};
+
+export type Activity = {
+  owner_sub: string;
+  owner_name: string;
+  owner_handle: string;
+  owner_color: string;
+  item: ApiItem;
+  tier: string;
+  score: number;
+  note: string;
+  when: string;
+  rank: number | null;
+  total: number | null;
+  reactions: Record<string, number>;
+  my_reaction: string | null;
+  comments: Comment[];
 };
 
 /** Server ranking-session state: either the next duel or the final placement. */
@@ -61,6 +98,12 @@ export const toItem = (a: ApiItem): Item => ({
   tip: a.tip ?? '',
   tags: a.tags ?? [],
   img: a.img ?? 'photo',
+  photo: a.photo_url ?? null,
+  photoThumb: a.photo_thumb ?? a.photo_url ?? null,
+  photoCredit: a.photo_credit ?? null,
+  photoLicense: a.photo_license ?? null,
+  photoSource: a.photo_source_url ?? null,
+  wikipedia: a.wikipedia_url ?? null,
   tier: null,
   score: null,
 });
@@ -90,6 +133,15 @@ async function call(path: string, token: string | null, init: RequestInit = {}) 
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.status === 204 ? null : res.json();
 }
+
+export type ItemRanking = {
+  sub: string;
+  name: string;
+  color: string;
+  score: number;
+  tier: string;
+  note: string | null;
+};
 
 export type Person = {
   sub: string;
@@ -125,6 +177,10 @@ export const api = {
   people: (token: string | null, q = ''): Promise<Person[]> =>
     call(`/api/people${q ? `?q=${encodeURIComponent(q)}` : ''}`, token),
   following: (token: string | null): Promise<Person[]> => call('/api/people/following', token),
+  person: (token: string | null, sub: string): Promise<Person> =>
+    call(`/api/people/${encodeURIComponent(sub)}`, token),
+  personRankings: (token: string | null, sub: string): Promise<ApiRanking[]> =>
+    call(`/api/people/${encodeURIComponent(sub)}/rankings`, token),
   follow: (token: string | null, sub: string) =>
     call(`/api/people/${encodeURIComponent(sub)}/follow`, token, { method: 'PUT' }),
   unfollow: (token: string | null, sub: string) =>
@@ -140,6 +196,30 @@ export const api = {
     toRankState(
       await call('/api/rank/compare', token, { method: 'POST', body: JSON.stringify({ session_id: sessionId, winner }) })
     ),
+  createItem: async (
+    token: string | null,
+    body: { city: string; title: string; hood: string; category: string; duration_min?: number; price?: number; note?: string; tip?: string; best_time?: string }
+  ): Promise<Item> => toItem(await call('/api/items', token, { method: 'POST', body: JSON.stringify(body) })),
+  itemRankings: (token: string | null, itemId: number): Promise<ItemRanking[]> =>
+    call(`/api/items/${itemId}/rankings`, token),
+  saves: (token: string | null): Promise<ApiItem[]> => call('/api/saves', token),
+  save: (token: string | null, itemId: number) => call(`/api/saves/${itemId}`, token, { method: 'PUT' }),
+  unsave: (token: string | null, itemId: number) => call(`/api/saves/${itemId}`, token, { method: 'DELETE' }),
+  activity: (token: string | null, owner: string, itemId: number): Promise<Activity> =>
+    call(`/api/activity/${encodeURIComponent(owner)}/${itemId}`, token),
+  react: (token: string | null, owner: string, itemId: number, emoji: string) =>
+    call(`/api/activity/${encodeURIComponent(owner)}/${itemId}/reaction`, token, {
+      method: 'PUT',
+      body: JSON.stringify({ emoji }),
+    }),
+  unreact: (token: string | null, owner: string, itemId: number) =>
+    call(`/api/activity/${encodeURIComponent(owner)}/${itemId}/reaction`, token, { method: 'DELETE' }),
+  comment: (token: string | null, owner: string, itemId: number, text: string): Promise<Comment> =>
+    call(`/api/activity/${encodeURIComponent(owner)}/${itemId}/comments`, token, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+  deleteComment: (token: string | null, id: string) => call(`/api/comments/${id}`, token, { method: 'DELETE' }),
   setNote: (token: string | null, itemId: number, note: string) =>
     call(`/api/rankings/${itemId}`, token, { method: 'PATCH', body: JSON.stringify({ note }) }),
   unrank: (token: string | null, itemId: number) =>

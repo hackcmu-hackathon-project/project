@@ -1,48 +1,344 @@
 {
-  "cities": { "sf": "San Francisco", "nyc": "New York" },
-  "categories": ["Food", "Drink", "Outdoors", "Culture", "Music", "Landmark", "Shop"],
-  "friends": [
-    { "name": "Jonah R.", "initials": "JR", "color": "#3b5b8c" },
-    { "name": "Priya S.", "initials": "PS", "color": "#8a2d6e" },
-    { "name": "Theo L.", "initials": "TL", "color": "#4f7a4a" },
-    { "name": "Ana C.", "initials": "AC", "color": "#b3622b" }
-  ],
+  "cities": {
+    "sf": "San Francisco",
+    "nyc": "New York"
+  },
   "items": [
-    { "id": 1, "city": "sf", "title": "Sutro Baths ruins at sunset", "hood": "Outer Richmond", "category": "Outdoors", "duration_min": 60, "price": 0, "best_time": "An hour before sunset", "note": "Concrete bones of a Victorian swimming palace, half-flooded, right where the land quits. Climb down into the ruins and stay for the light.", "tip": "Check the tide chart — low tide opens the cave at the north end.", "tags": ["free", "sunset", "walk"], "img": "photo: the ruins", "seed_tier": "loved", "seed_score": 9.4 },
-    { "id": 2, "city": "sf", "title": "Morning bun at Tartine", "hood": "Mission", "category": "Food", "duration_min": 30, "price": 1, "best_time": "Before 9am", "note": "Orange-sugar, laminated, faintly burnt at the edges. The line is the toll and it is worth paying exactly once a week.", "tip": "Get there before 9 or the morning buns are gone and you are eating a scone.", "tags": ["pastry", "line", "morning"], "img": "photo: the morning bun", "seed_tier": "loved", "seed_score": 9.1 },
-    { "id": 3, "city": "sf", "title": "Counter seat at Swan Oyster Depot", "hood": "Nob Hill", "category": "Food", "duration_min": 75, "price": 3, "best_time": "2pm, after the rush", "note": "Eighteen stools, no tables, a crab back and a cold beer at three in the afternoon. Family-run since 1912 and entirely uninterested in changing.", "tip": "Go at 2pm on a weekday. Cash is smoother than card.", "tags": ["seafood", "classic", "line"], "img": "photo: the counter", "seed_tier": "loved", "seed_score": 8.8 },
-    { "id": 4, "city": "sf", "title": "The Dolores Park slope on a clear day", "hood": "Mission", "category": "Outdoors", "duration_min": 120, "price": 0, "best_time": "2pm, sunny", "note": "The whole city arranged on a hillside with the skyline in front of it. Bring a blanket, buy something from whoever walks by.", "tip": "Upper slope for sun, lower field for shade. The fog decides your evening around 5.", "tags": ["free", "picnic", "sunny"], "img": "photo: the slope", "seed_tier": "liked", "seed_score": 7.6 },
-    { "id": 5, "city": "sf", "title": "Ferry Plaza farmers market on a Saturday", "hood": "Embarcadero", "category": "Food", "duration_min": 90, "price": 2, "best_time": "Saturday before 9am", "note": "Porchetta sandwich from Roli Roti, peaches in season, oysters if you are feeling expensive. Eat on the pier facing the bay.", "tip": "Before 9 or accept the crowds. The porchetta line moves faster than it looks.", "tags": ["market", "saturday", "breakfast"], "img": "photo: the market", "seed_tier": "liked", "seed_score": 7.1 },
-    { "id": 6, "city": "sf", "title": "A drink at Trick Dog", "hood": "Mission", "category": "Drink", "duration_min": 60, "price": 3, "best_time": "7pm, before it fills", "note": "The menu is redesigned every six months around some ridiculous premise — a zodiac chart, a Pantone book — and the drinks are genuinely good underneath the bit.", "tip": "Upstairs if you can get it. Ask what the current menu is built around.", "tags": ["cocktails", "groups", "night"], "img": "photo: the menu", "seed_tier": "liked", "seed_score": 6.8 },
-    { "id": 7, "city": "sf", "title": "Hang gliders at Fort Funston", "hood": "Lakeshore", "category": "Outdoors", "duration_min": 60, "price": 0, "best_time": "Windy afternoons", "note": "A cliff, a permanent onshore wind, gliders launching a few feet over your head, and more dogs than people. Strange and completely free.", "tip": "Windy even in September — bring a layer. The sand ladder down to the beach is steep.", "tags": ["free", "dogs", "weird"], "img": "photo: a glider", "seed_tier": null, "seed_score": null },
-    { "id": 8, "city": "sf", "title": "The bison paddock in Golden Gate Park", "hood": "Golden Gate Park", "category": "Outdoors", "duration_min": 20, "price": 0, "best_time": "Late morning", "note": "There is a herd of American bison in the middle of the park and nobody believes you until they are standing in front of it.", "tip": "Bike it — JFK Drive is car-free. Keep going west to the windmill and Ocean Beach.", "tags": ["free", "weird", "bike"], "img": "photo: bison", "seed_tier": null, "seed_score": null },
-    { "id": 9, "city": "sf", "title": "Mai tai at Li Po Lounge", "hood": "Chinatown", "category": "Drink", "duration_min": 45, "price": 2, "best_time": "After 9pm", "note": "A cave of red lanterns behind a stone arch, and a mai tai made from a secret Chinese liquor that will end your night on its own terms.", "tip": "One is enough. Genuinely.", "tags": ["dive", "night", "cheap"], "img": "photo: the lanterns", "seed_tier": null, "seed_score": null },
-    { "id": 10, "city": "sf", "title": "Dim sum from Good Mong Kok", "hood": "Chinatown", "category": "Food", "duration_min": 30, "price": 1, "best_time": "11am", "note": "A bakery counter, a paper bag, eight dollars, and the best shu mai in the city. There is nowhere to sit and that is fine.", "tip": "Cash only. Point at things. Eat it on a bench in Portsmouth Square.", "tags": ["cheap", "takeout", "cash"], "img": "photo: the bag", "seed_tier": "liked", "seed_score": 7.9 },
-    { "id": 11, "city": "sf", "title": "Cinnamon toast at Trouble Coffee", "hood": "Outer Sunset", "category": "Food", "duration_min": 30, "price": 1, "best_time": "After the beach", "note": "A thick slab of grilled cinnamon toast, a coconut with a straw in it, a bench facing the fog. The original and still correct.", "tip": "Walk the two blocks to Ocean Beach with it.", "tags": ["coffee", "beach", "cheap"], "img": "photo: the toast", "seed_tier": null, "seed_score": null },
-    { "id": 12, "city": "sf", "title": "Riding the Powell-Hyde cable car", "hood": "Nob Hill", "category": "Landmark", "duration_min": 30, "price": 1, "best_time": "Early, before the queue", "note": "Touristy, expensive per minute, and still the best thing on rails in America if you stand on the running board going down Hyde.", "tip": "Board at a mid-route stop instead of the turnaround and skip the hour-long line.", "tags": ["classic", "views", "touristy"], "img": "photo: the car", "seed_tier": "okay", "seed_score": 4.2 },
-    { "id": 13, "city": "sf", "title": "Floor 7 at SFMOMA", "hood": "SoMa", "category": "Culture", "duration_min": 90, "price": 2, "best_time": "Thursday evening", "note": "Skip the lower floors and go straight up. Media arts, the Agnes Martin room, and a terrace with a living wall that nobody is ever on.", "tip": "Do two floors, not seven. Your feet will file a complaint otherwise.", "tags": ["art", "rainy-day", "indoors"], "img": "photo: the terrace", "seed_tier": null, "seed_score": null },
-    { "id": 14, "city": "sf", "title": "Walking the Lands End Coastal Trail", "hood": "Outer Richmond", "category": "Outdoors", "duration_min": 90, "price": 0, "best_time": "Morning, before the fog lifts", "note": "Cypress tunnels, shipwrecks at low tide, and the bridge appearing through the trees about two thirds of the way along.", "tip": "Start at the visitor center and walk east; the labyrinth is worth the detour.", "tags": ["free", "hike", "views"], "img": "photo: the trail", "seed_tier": "loved", "seed_score": 9.0 },
-
-    { "id": 15, "city": "nyc", "title": "Brooklyn Bridge at dawn", "hood": "Dumbo", "category": "Landmark", "duration_min": 60, "price": 0, "best_time": "6am", "note": "Start on the Manhattan side at six. The bridge is nearly empty, the skyline lights up behind you, and you are in Dumbo for breakfast before the city wakes.", "tip": "Enter at the Centre St stairs. Stay left; the right lane is bikes and they are not joking.", "tags": ["free", "sunrise", "walk"], "img": "photo: bridge at dawn", "seed_tier": "loved", "seed_score": 9.1 },
-    { "id": 16, "city": "nyc", "title": "Lox on a plain bagel at Russ & Daughters", "hood": "Lower East Side", "category": "Food", "duration_min": 40, "price": 2, "best_time": "9am weekday", "note": "A hundred-year-old appetizing shop where they slice the Gaspé so thin it goes translucent. Take a number and watch the counter work.", "tip": "Plain bagel. Do not argue with this. Sable if you are feeling brave.", "tags": ["breakfast", "classic", "line"], "img": "photo: the counter", "seed_tier": "loved", "seed_score": 8.9 },
-    { "id": 17, "city": "nyc", "title": "The Met roof garden", "hood": "Upper East Side", "category": "Culture", "duration_min": 60, "price": 3, "best_time": "5pm Friday", "note": "One commissioned sculpture a year, a bar nobody needs, and Central Park going gold underneath you while the museum quietly empties out.", "tip": "Go straight up when you arrive, then work down. Closed in winter.", "tags": ["views", "art", "sunset"], "img": "photo: the roof", "seed_tier": "loved", "seed_score": 8.5 },
-    { "id": 18, "city": "nyc", "title": "A plain slice at Joe's", "hood": "Greenwich Village", "category": "Food", "duration_min": 15, "price": 0, "best_time": "1am", "note": "Folded, eaten standing at the counter, done in four minutes. The control group against which every other slice is measured.", "tip": "Plain. Standing. Do not sit down and do not get pepperoni.", "tags": ["cheap", "late-night", "classic"], "img": "photo: the slice", "seed_tier": "liked", "seed_score": 7.6 },
-    { "id": 19, "city": "nyc", "title": "First set at the Village Vanguard", "hood": "West Village", "category": "Music", "duration_min": 90, "price": 3, "best_time": "8pm, Monday for the big band", "note": "A wedge-shaped basement with perfect sound and eighty years of ghosts in it. Coltrane recorded here. The tables are too small and it does not matter.", "tip": "Reserve ahead, arrive 45 minutes early for a decent seat. Cash bar.", "tags": ["jazz", "night", "iconic"], "img": "photo: the room", "seed_tier": "liked", "seed_score": 7.2 },
-    { "id": 20, "city": "nyc", "title": "Staten Island Ferry at sunset", "hood": "Financial District", "category": "Landmark", "duration_min": 60, "price": 0, "best_time": "Golden hour", "note": "Free, twenty-five minutes each way, and the best view of the harbor and the statue that exists. Ride out, turn around, ride back.", "tip": "Right side going out, left side coming back. Stand at the rail on the open deck.", "tags": ["free", "views", "sunset"], "img": "photo: the harbor", "seed_tier": null, "seed_score": null },
-    { "id": 21, "city": "nyc", "title": "Late show at the Comedy Cellar", "hood": "Greenwich Village", "category": "Culture", "duration_min": 90, "price": 2, "best_time": "11:30pm", "note": "A low brick basement where famous people drop in unannounced to work out material on eighty strangers. The 11:30 is the one worth booking.", "tip": "Two-drink minimum, and dinner upstairs at the Olive Tree gets you in the door.", "tags": ["night", "comedy", "drop-ins"], "img": "photo: the cellar sign", "seed_tier": "liked", "seed_score": 6.9 },
-    { "id": 22, "city": "nyc", "title": "Getting lost in the Ramble", "hood": "Central Park", "category": "Outdoors", "duration_min": 60, "price": 0, "best_time": "Weekday morning", "note": "Thirty-six acres of deliberately confusing woodland in the middle of the park. No sightlines, no crowds, actual birds.", "tip": "Come out at Bethesda Terrace and sit under the arcade.", "tags": ["free", "quiet", "walk"], "img": "photo: the woods", "seed_tier": null, "seed_score": null },
-    { "id": 23, "city": "nyc", "title": "Adobada from Los Tacos No. 1", "hood": "Chelsea", "category": "Food", "duration_min": 20, "price": 1, "best_time": "Noon", "note": "Standing at a counter inside Chelsea Market eating three tacos off a tray with the right amount of pineapple on them.", "tip": "Adobada, then one al pastor. Handmade tortilla is worth the upcharge.", "tags": ["cheap", "lunch", "standing"], "img": "photo: the tray", "seed_tier": "liked", "seed_score": 7.4 },
-    { "id": 24, "city": "nyc", "title": "The Roosevelt Island tram", "hood": "Midtown East", "category": "Landmark", "duration_min": 30, "price": 0, "best_time": "Dusk", "note": "A commuter cable car that takes a subway swipe and floats you over the East River past the Queensboro Bridge at rooftop height.", "tip": "Costs a normal fare. Ride it both ways at dusk and stand at the front.", "tags": ["cheap", "views", "underrated"], "img": "photo: the tram", "seed_tier": null, "seed_score": null },
-    { "id": 25, "city": "nyc", "title": "The third floor of the Strand", "hood": "Union Square", "category": "Shop", "duration_min": 60, "price": 1, "best_time": "Rainy afternoon", "note": "Eighteen miles of books, and the rare book room upstairs is a quiet wood-panelled break from the scrum downstairs.", "tip": "Start on three and work down. Buy one book. One.", "tags": ["books", "rainy-day", "indoors"], "img": "photo: the stacks", "seed_tier": null, "seed_score": null },
-    { "id": 26, "city": "nyc", "title": "Sitting on the Domino Park steps", "hood": "Williamsburg", "category": "Outdoors", "duration_min": 45, "price": 0, "best_time": "Late afternoon", "note": "Salvaged syrup tanks, a stretch of waterfront, and the Manhattan skyline doing the thing it does. Tacos from the stand behind you.", "tip": "Walk north to the ferry landing and take the boat back instead of the L.", "tags": ["free", "views", "waterfront"], "img": "photo: the steps", "seed_tier": "okay", "seed_score": 4.6 },
-    { "id": 27, "city": "nyc", "title": "Cumin lamb noodles at Xi'an Famous Foods", "hood": "Flushing", "category": "Food", "duration_min": 25, "price": 1, "best_time": "Any time you are cold", "note": "Hand-ripped noodles, enough cumin to change your personality, and a bill under fifteen dollars. Ten minutes start to finish.", "tip": "Spicy means spicy. The cold skin noodles on the side are the real order.", "tags": ["cheap", "spicy", "fast"], "img": "photo: the noodles", "seed_tier": null, "seed_score": null },
-    { "id": 28, "city": "nyc", "title": "Two adjectives at Attaboy", "hood": "Lower East Side", "category": "Drink", "duration_min": 60, "price": 3, "best_time": "Early, before the wait", "note": "No menu, no sign, no reservations. You say two words about what you want and someone builds it in front of you.", "tip": "Say something specific — 'bitter and a little mean' works better than 'something good'.", "tags": ["cocktails", "no-menu", "night"], "img": "photo: the bar", "seed_tier": null, "seed_score": null }
-  ],
-  "feed": [
-    { "friend": 1, "item_id": 15, "score": 9.1, "action": "ranked a new #1 in", "time": "2h", "likes": 34, "comments": 6, "note": "Finally did the dawn walk. Nobody on the bridge. Nobody.", "img": "photo: bridge at dawn" },
-    { "friend": 0, "item_id": 3, "score": 8.2, "action": "ranked", "time": "5h", "likes": 21, "comments": 3, "note": "Waited 50 minutes for a stool. Crab back, sourdough, out in 25. Correct trade.", "img": "photo: the counter" },
-    { "friend": 3, "item_id": 21, "score": 8.8, "action": "ranked", "time": "Yesterday", "likes": 47, "comments": 11, "note": "Surprise drop-in. Won't say who. Joe's at 1am hit different after.", "img": "photo: the cellar sign" },
-    { "friend": 2, "item_id": 8, "score": 6.9, "action": "ranked", "time": "Yesterday", "likes": 12, "comments": 2, "note": "Bison were asleep. Windmill was great. Would go again with a picnic.", "img": "photo: bison" },
-    { "friend": 1, "item_id": 17, "score": 8.9, "action": "ranked", "time": "2d", "likes": 29, "comments": 4, "note": "Roof garden empty at open. Went straight up, stayed an hour.", "img": "photo: the roof" }
+    {
+      "id": 1,
+      "city": "sf",
+      "title": "Sutro Baths ruins at sunset",
+      "hood": "Outer Richmond",
+      "category": "Outdoors",
+      "duration_min": 60,
+      "price": 0,
+      "best_time": "An hour before sunset",
+      "note": "Concrete bones of a Victorian swimming palace, half-flooded, right where the land quits. Climb down into the ruins and stay for the light.",
+      "tip": "Check the tide chart — low tide opens the cave at the north end.",
+      "tags": [
+        "free",
+        "sunset",
+        "walk"
+      ],
+      "img": "photo: the ruins",
+      "seed_tier": "loved",
+      "seed_score": 9.4,
+      "photo_query": "Sutro Baths ruins San Francisco"
+    },
+    {
+      "id": 4,
+      "city": "sf",
+      "title": "The Dolores Park slope on a clear day",
+      "hood": "Mission",
+      "category": "Outdoors",
+      "duration_min": 120,
+      "price": 0,
+      "best_time": "2pm, sunny",
+      "note": "The whole city arranged on a hillside with the skyline in front of it. Bring a blanket, buy something from whoever walks by.",
+      "tip": "Upper slope for sun, lower field for shade. The fog decides your evening around 5.",
+      "tags": [
+        "free",
+        "picnic",
+        "sunny"
+      ],
+      "img": "photo: the slope",
+      "seed_tier": "liked",
+      "seed_score": 7.6,
+      "photo_query": "Dolores Park San Francisco"
+    },
+    {
+      "id": 7,
+      "city": "sf",
+      "title": "Hang gliders at Fort Funston",
+      "hood": "Lakeshore",
+      "category": "Outdoors",
+      "duration_min": 60,
+      "price": 0,
+      "best_time": "Windy afternoons",
+      "note": "A cliff, a permanent onshore wind, gliders launching a few feet over your head, and more dogs than people. Strange and completely free.",
+      "tip": "Windy even in September — bring a layer. The sand ladder down to the beach is steep.",
+      "tags": [
+        "free",
+        "dogs",
+        "weird"
+      ],
+      "img": "photo: a glider",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "Fort Funston hang glider"
+    },
+    {
+      "id": 8,
+      "city": "sf",
+      "title": "The bison paddock in Golden Gate Park",
+      "hood": "Golden Gate Park",
+      "category": "Outdoors",
+      "duration_min": 20,
+      "price": 0,
+      "best_time": "Late morning",
+      "note": "There is a herd of American bison in the middle of the park and nobody believes you until they are standing in front of it.",
+      "tip": "Bike it — JFK Drive is car-free. Keep going west to the windmill and Ocean Beach.",
+      "tags": [
+        "free",
+        "weird",
+        "bike"
+      ],
+      "img": "photo: bison",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "American bison Golden Gate Park"
+    },
+    {
+      "id": 12,
+      "city": "sf",
+      "title": "Riding the Powell-Hyde cable car",
+      "hood": "Nob Hill",
+      "category": "Landmark",
+      "duration_min": 30,
+      "price": 1,
+      "best_time": "Early, before the queue",
+      "note": "Touristy, expensive per minute, and still the best thing on rails in America if you stand on the running board going down Hyde.",
+      "tip": "Board at a mid-route stop instead of the turnaround and skip the hour-long line.",
+      "tags": [
+        "classic",
+        "views",
+        "touristy"
+      ],
+      "img": "photo: the car",
+      "seed_tier": "okay",
+      "seed_score": 4.2,
+      "photo_query": "Powell Hyde cable car San Francisco"
+    },
+    {
+      "id": 13,
+      "city": "sf",
+      "title": "Floor 7 at SFMOMA",
+      "hood": "SoMa",
+      "category": "Culture",
+      "duration_min": 90,
+      "price": 2,
+      "best_time": "Thursday evening",
+      "note": "Skip the lower floors and go straight up. Media arts, the Agnes Martin room, and a terrace with a living wall that nobody is ever on.",
+      "tip": "Do two floors, not seven. Your feet will file a complaint otherwise.",
+      "tags": [
+        "art",
+        "rainy-day",
+        "indoors"
+      ],
+      "img": "photo: the terrace",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "SFMOMA San Francisco museum"
+    },
+    {
+      "id": 14,
+      "city": "sf",
+      "title": "Walking the Lands End Coastal Trail",
+      "hood": "Outer Richmond",
+      "category": "Outdoors",
+      "duration_min": 90,
+      "price": 0,
+      "best_time": "Morning, before the fog lifts",
+      "note": "Cypress tunnels, shipwrecks at low tide, and the bridge appearing through the trees about two thirds of the way along.",
+      "tip": "Start at the visitor center and walk east; the labyrinth is worth the detour.",
+      "tags": [
+        "free",
+        "hike",
+        "views"
+      ],
+      "img": "photo: the trail",
+      "seed_tier": "loved",
+      "seed_score": 9.0,
+      "photo_query": "Lands End Coastal Trail San Francisco"
+    },
+    {
+      "id": 15,
+      "city": "nyc",
+      "title": "Brooklyn Bridge at dawn",
+      "hood": "Dumbo",
+      "category": "Landmark",
+      "duration_min": 60,
+      "price": 0,
+      "best_time": "6am",
+      "note": "Start on the Manhattan side at six. The bridge is nearly empty, the skyline lights up behind you, and you are in Dumbo for breakfast before the city wakes.",
+      "tip": "Enter at the Centre St stairs. Stay left; the right lane is bikes and they are not joking.",
+      "tags": [
+        "free",
+        "sunrise",
+        "walk"
+      ],
+      "img": "photo: bridge at dawn",
+      "seed_tier": "loved",
+      "seed_score": 9.1,
+      "photo_query": "Brooklyn Bridge dawn"
+    },
+    {
+      "id": 17,
+      "city": "nyc",
+      "title": "The Met roof garden",
+      "hood": "Upper East Side",
+      "category": "Culture",
+      "duration_min": 60,
+      "price": 3,
+      "best_time": "5pm Friday",
+      "note": "One commissioned sculpture a year, a bar nobody needs, and Central Park going gold underneath you while the museum quietly empties out.",
+      "tip": "Go straight up when you arrive, then work down. Closed in winter.",
+      "tags": [
+        "views",
+        "art",
+        "sunset"
+      ],
+      "img": "photo: the roof",
+      "seed_tier": "loved",
+      "seed_score": 8.5,
+      "photo_query": "Metropolitan Museum of Art roof garden"
+    },
+    {
+      "id": 19,
+      "city": "nyc",
+      "title": "First set at the Village Vanguard",
+      "hood": "West Village",
+      "category": "Music",
+      "duration_min": 90,
+      "price": 3,
+      "best_time": "8pm, Monday for the big band",
+      "note": "A wedge-shaped basement with perfect sound and eighty years of ghosts in it. Coltrane recorded here. The tables are too small and it does not matter.",
+      "tip": "Reserve ahead, arrive 45 minutes early for a decent seat. Cash bar.",
+      "tags": [
+        "jazz",
+        "night",
+        "iconic"
+      ],
+      "img": "photo: the room",
+      "seed_tier": "liked",
+      "seed_score": 7.2,
+      "photo_query": "Village Vanguard jazz club"
+    },
+    {
+      "id": 20,
+      "city": "nyc",
+      "title": "Staten Island Ferry at sunset",
+      "hood": "Financial District",
+      "category": "Landmark",
+      "duration_min": 60,
+      "price": 0,
+      "best_time": "Golden hour",
+      "note": "Free, twenty-five minutes each way, and the best view of the harbor and the statue that exists. Ride out, turn around, ride back.",
+      "tip": "Right side going out, left side coming back. Stand at the rail on the open deck.",
+      "tags": [
+        "free",
+        "views",
+        "sunset"
+      ],
+      "img": "photo: the harbor",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "Staten Island Ferry sunset"
+    },
+    {
+      "id": 21,
+      "city": "nyc",
+      "title": "Late show at the Comedy Cellar",
+      "hood": "Greenwich Village",
+      "category": "Culture",
+      "duration_min": 90,
+      "price": 2,
+      "best_time": "11:30pm",
+      "note": "A low brick basement where famous people drop in unannounced to work out material on eighty strangers. The 11:30 is the one worth booking.",
+      "tip": "Two-drink minimum, and dinner upstairs at the Olive Tree gets you in the door.",
+      "tags": [
+        "night",
+        "comedy",
+        "drop-ins"
+      ],
+      "img": "photo: the cellar sign",
+      "seed_tier": "liked",
+      "seed_score": 6.9,
+      "photo_query": "Comedy Cellar New York"
+    },
+    {
+      "id": 22,
+      "city": "nyc",
+      "title": "Getting lost in the Ramble",
+      "hood": "Central Park",
+      "category": "Outdoors",
+      "duration_min": 60,
+      "price": 0,
+      "best_time": "Weekday morning",
+      "note": "Thirty-six acres of deliberately confusing woodland in the middle of the park. No sightlines, no crowds, actual birds.",
+      "tip": "Come out at Bethesda Terrace and sit under the arcade.",
+      "tags": [
+        "free",
+        "quiet",
+        "walk"
+      ],
+      "img": "photo: the woods",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "Central Park Ramble"
+    },
+    {
+      "id": 24,
+      "city": "nyc",
+      "title": "The Roosevelt Island tram",
+      "hood": "Midtown East",
+      "category": "Landmark",
+      "duration_min": 30,
+      "price": 0,
+      "best_time": "Dusk",
+      "note": "A commuter cable car that takes a subway swipe and floats you over the East River past the Queensboro Bridge at rooftop height.",
+      "tip": "Costs a normal fare. Ride it both ways at dusk and stand at the front.",
+      "tags": [
+        "cheap",
+        "views",
+        "underrated"
+      ],
+      "img": "photo: the tram",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "Roosevelt Island Tram"
+    },
+    {
+      "id": 25,
+      "city": "nyc",
+      "title": "The third floor of the Strand",
+      "hood": "Union Square",
+      "category": "Shop",
+      "duration_min": 60,
+      "price": 1,
+      "best_time": "Rainy afternoon",
+      "note": "Eighteen miles of books, and the rare book room upstairs is a quiet wood-panelled break from the scrum downstairs.",
+      "tip": "Start on three and work down. Buy one book. One.",
+      "tags": [
+        "books",
+        "rainy-day",
+        "indoors"
+      ],
+      "img": "photo: the stacks",
+      "seed_tier": null,
+      "seed_score": null,
+      "photo_query": "Strand Book Store New York"
+    },
+    {
+      "id": 26,
+      "city": "nyc",
+      "title": "Sitting on the Domino Park steps",
+      "hood": "Williamsburg",
+      "category": "Outdoors",
+      "duration_min": 45,
+      "price": 0,
+      "best_time": "Late afternoon",
+      "note": "Salvaged syrup tanks, a stretch of waterfront, and the Manhattan skyline doing the thing it does. Tacos from the stand behind you.",
+      "tip": "Walk north to the ferry landing and take the boat back instead of the L.",
+      "tags": [
+        "free",
+        "views",
+        "waterfront"
+      ],
+      "img": "photo: the steps",
+      "seed_tier": "okay",
+      "seed_score": 4.6,
+      "photo_query": "Domino Park Williamsburg"
+    }
   ]
 }

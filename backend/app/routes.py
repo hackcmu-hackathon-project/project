@@ -3,11 +3,16 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import people, ranking
+from . import people, photos, ranking, social
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
+    CATEGORIES,
+    Activity,
     City,
+    Comment,
+    CommentCreate,
+    ReactionSet,
     FeedEntry,
     Item,
     ItemCreate,
@@ -145,6 +150,21 @@ async def my_following(
     return await people.hydrate(db, docs, user.sub)
 
 
+@router.get("/people/{sub}/rankings")
+async def person_rankings(
+    sub: str,
+    city: City | None = None,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Someone else's ranked list. Declared before the catch-all /people/{sub}."""
+    rows = await ranking.ranked_items(db, sub, city)
+    return [
+        {"item_id": r["item_id"], "tier": r["tier"], "score": r["score"], "note": r.get("note"), "item": r["item"]}
+        for r in rows
+    ]
+
+
 @router.get("/people/{sub:path}", response_model=PublicUser)
 async def get_person(
     sub: str,
@@ -191,11 +211,13 @@ async def cities(db: AsyncIOMotorDatabase = Depends(get_db)):
 
 @router.get("/categories")
 async def categories(city: City | None = None, db: AsyncIOMotorDatabase = Depends(get_db)):
+    """The fixed category list, with how many things each holds."""
     match = {"city": city} if city else {}
     rows = await db.items.aggregate(
-        [{"$match": match}, {"$group": {"_id": "$category", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+        [{"$match": match}, {"$group": {"_id": "$category", "count": {"$sum": 1}}}]
     ).to_list(20)
-    return [{"category": r["_id"], "count": r["count"]} for r in rows]
+    counts = {r["_id"]: r["count"] for r in rows}
+    return [{"category": c, "count": counts.get(c, 0)} for c in CATEGORIES]
 
 
 @router.get("/items", response_model=list[Item])
@@ -203,6 +225,8 @@ async def list_items(
     city: City | None = None,
     category: Category | None = None,
     q: str | None = Query(None, description="Substring match on title, neighborhood or tag"),
+    limit: int = Query(500, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     query: dict = {}
@@ -216,13 +240,43 @@ async def list_items(
             {"hood": {"$regex": q, "$options": "i"}},
             {"tags": {"$regex": q, "$options": "i"}},
         ]
-    docs = await db.items.find(query, {"_id": 0}).sort("id", 1).to_list(500)
+    docs = await db.items.find(query, {"_id": 0}).sort("id", 1).skip(offset).limit(limit).to_list(limit)
     return [Item(**d) for d in docs]
 
 
 @router.get("/items/{item_id}", response_model=Item)
 async def get_item(item_id: int, db: AsyncIOMotorDatabase = Depends(get_db)):
     return await ranking.item_or_404(db, item_id)
+
+
+@router.get("/items/{item_id}/rankings")
+async def item_rankings(
+    item_id: int,
+    scope: str = Query("following", pattern="^(following|everyone)$"),
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Who else has ranked this, and what they gave it."""
+    if scope == "following":
+        subs = await people.following_subs(db, user.sub)
+    else:
+        subs = [d["_id"] for d in await db.users.find({"_id": {"$ne": user.sub}}, {"_id": 1}).to_list(500)]
+    if not subs:
+        return []
+    rows = await db.rankings.find({"item_id": item_id, "sub": {"$in": subs}}, {"_id": 0}).sort("score", -1).to_list(200)
+    profiles = await db.users.find({"_id": {"$in": [r["sub"] for r in rows]}}).to_list(200)
+    by_sub = {p["_id"]: p for p in profiles}
+    return [
+        {
+            "sub": r["sub"],
+            "name": by_sub.get(r["sub"], {}).get("name", "Someone"),
+            "color": by_sub.get(r["sub"], {}).get("color", "#8a2d6e"),
+            "score": r["score"],
+            "tier": r["tier"],
+            "note": r.get("note"),
+        }
+        for r in rows
+    ]
 
 
 @router.post("/items", response_model=Item, status_code=status.HTTP_201_CREATED)
@@ -239,9 +293,13 @@ async def create_item(
         "created_by": user.sub,
         "created_at": _now(),
     }
+    photo = await photos.find_photo(photos.photo_query_for(doc))
+    if photo:
+        doc.update(photo)
     await db.items.insert_one(dict(doc))
     doc.pop("_id", None)
     doc.pop("created_at", None)
+    doc.pop("photo_query", None)
     return Item(**doc)
 
 
@@ -315,6 +373,135 @@ async def delete_ranking(
 # ------------------------------------------------------------------------- feed
 
 
+# ------------------------------------------------------------------ want to go
+
+
+@router.get("/saves", response_model=list[Item])
+async def my_saves(
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    ids = await social.saved_ids(db, user.sub)
+    if not ids:
+        return []
+    docs = await db.items.find({"id": {"$in": ids}}, {"_id": 0}).to_list(500)
+    by_id = {d["id"]: d for d in docs}
+    return [Item(**by_id[i]) for i in ids if i in by_id]
+
+
+@router.put("/saves/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def save_item(
+    item_id: int,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    await ranking.item_or_404(db, item_id)
+    await social.save(db, user.sub, item_id)
+
+
+@router.delete("/saves/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unsave_item(
+    item_id: int,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    await social.unsave(db, user.sub, item_id)
+
+
+# ------------------------------------------------------------------- activity
+
+
+@router.get("/activity/{owner}/{item_id}", response_model=Activity)
+async def get_activity(
+    owner: str,
+    item_id: int,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """One person's ranking of one item, with its reactions and comments."""
+    row = await db.rankings.find_one({"sub": owner, "item_id": item_id}, {"_id": 0})
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That ranking is gone")
+    item = await ranking.item_or_404(db, item_id)
+    person = await db.users.find_one({"_id": owner}) or {}
+    city_rows = await ranking.ranked_items(db, owner, item.city)
+    rank = next((i + 1 for i, r in enumerate(city_rows) if r["item_id"] == item_id), None)
+    summary = (await social.reaction_summary(db, [social.post_id(owner, item_id)], user.sub)).get(
+        social.post_id(owner, item_id), {"counts": {}, "mine": None}
+    )
+    return Activity(
+        owner_sub=owner,
+        owner_name=person.get("name", "Someone"),
+        owner_handle=person.get("handle", ""),
+        owner_color=person.get("color", "#8a2d6e"),
+        item=item,
+        tier=row["tier"],
+        score=row["score"],
+        note=row.get("note") or "",
+        when=_ago(row.get("updated_at")),
+        rank=rank,
+        total=len(city_rows),
+        reactions=summary["counts"],
+        my_reaction=summary["mine"],
+        comments=await social.comments_for(db, owner, item_id, user.sub),
+    )
+
+
+@router.put("/activity/{owner}/{item_id}/reaction", status_code=status.HTTP_204_NO_CONTENT)
+async def set_reaction(
+    owner: str,
+    item_id: int,
+    body: ReactionSet,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    if body.emoji not in social.EMOJI:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unsupported reaction")
+    await social.react(db, user.sub, owner, item_id, body.emoji)
+
+
+@router.delete("/activity/{owner}/{item_id}/reaction", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_reaction(
+    owner: str,
+    item_id: int,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    await social.unreact(db, user.sub, owner, item_id)
+
+
+@router.post("/activity/{owner}/{item_id}/comments", response_model=Comment, status_code=status.HTTP_201_CREATED)
+async def add_comment(
+    owner: str,
+    item_id: int,
+    body: CommentCreate,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    if not await db.rankings.find_one({"sub": owner, "item_id": item_id}, {"_id": 1}):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That ranking is gone")
+    await _touch_user(db, user)
+    cid = await social.add_comment(db, user.sub, owner, item_id, body.text)
+    comments = await social.comments_for(db, owner, item_id, user.sub)
+    return next(c for c in comments if c.id == cid)
+
+
+@router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_comment(
+    comment_id: str,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """You can only delete your own comments."""
+    if not await social.delete_comment(db, user.sub, comment_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your comment")
+
+
+@router.get("/emoji")
+async def emoji_palette():
+    return social.EMOJI
+
+
 @router.get("/feed", response_model=list[FeedEntry])
 async def feed(
     scope: str = Query("following", pattern="^(following|everyone)$"),
@@ -324,8 +511,8 @@ async def feed(
 ):
     """Rankings by the people you follow (or everyone), newest first.
 
-    Someone who follows nobody yet gets the curated seed activity instead of an
-    empty screen, with a nudge to go find people.
+    Empty until you follow someone — the app turns that into a prompt to go find
+    people rather than inventing activity.
     """
     if scope == "following":
         subs = await people.following_subs(db, user.sub)
@@ -340,6 +527,11 @@ async def feed(
         by_sub = {p["_id"]: p for p in profiles}
         items = await db.items.find({"id": {"$in": [r["item_id"] for r in rows]}}, {"_id": 0}).to_list(500)
         by_id = {i["id"]: i for i in items}
+
+        posts = [social.post_id(r["sub"], r["item_id"]) for r in rows]
+        summary = await social.reaction_summary(db, posts, user.sub)
+        counts = await social.comment_counts(db, posts)
+        saved = set(await social.saved_ids(db, user.sub))
 
         seen: dict[str, int] = {}
         for r in rows:
@@ -365,32 +557,11 @@ async def feed(
                     time=_ago(r.get("updated_at")),
                     note=r.get("note") or "",
                     img=item.get("img", "photo"),
-                )
-            )
-
-    if not entries:
-        seeded = await db.feed_seed.find({}, {"_id": 0}).sort("order", 1).to_list(limit)
-        items = await db.items.find({"id": {"$in": [p["item_id"] for p in seeded]}}, {"_id": 0}).to_list(200)
-        by_id = {i["id"]: i for i in items}
-        for idx, p in enumerate(seeded):
-            item = by_id.get(p["item_id"])
-            if not item:
-                continue
-            entries.append(
-                FeedEntry(
-                    id=f"seed-{idx}",
-                    user_sub=p.get("sub"),
-                    user_name=p["friend"]["name"],
-                    user_color=p["friend"]["color"],
-                    item=Item(**item),
-                    score=p["score"],
-                    tier="loved" if p["score"] >= 8 else "liked" if p["score"] >= 5 else "okay",
-                    action=p["action"],
-                    time=p["time"],
-                    likes=p["likes"],
-                    comments=p["comments"],
-                    note=p["note"],
-                    img=p.get("img", "photo"),
+                    reactions=summary.get(social.post_id(r["sub"], r["item_id"]), {}).get("counts", {}),
+                    my_reaction=summary.get(social.post_id(r["sub"], r["item_id"]), {}).get("mine"),
+                    likes=sum(summary.get(social.post_id(r["sub"], r["item_id"]), {}).get("counts", {}).values()),
+                    comments=counts.get(social.post_id(r["sub"], r["item_id"]), 0),
+                    saved=item["id"] in saved,
                 )
             )
 
