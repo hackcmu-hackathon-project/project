@@ -1,6 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Linking, ScrollView, TextInput, View } from 'react-native';
-import { api, ItineraryRequest, ItineraryResult } from '../api';
+import * as Crypto from 'expo-crypto';
+import { VerifyTrip } from '../components/VerifyTrip';
+import { SearchSources } from '../components/SearchSources';
+import { TripEditor } from './TripEditor';
+import { api, ItineraryRequest, ItineraryResult, SavedTrip } from '../api';
 import { useAuth } from '../auth';
 import { CityChips, Eyebrow, Row, T, Touch } from '../components/ui';
 import { useStore } from '../store';
@@ -25,6 +29,11 @@ export function Itinerary({ top, onClose }: { top: number; onClose: () => void }
   const [result, setResult] = useState<ItineraryResult | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [trips, setTrips] = useState<SavedTrip[]>([]);
+  const [editor, setEditor] = useState<SavedTrip | null>(null);
+  const [tripError, setTripError] = useState('');
+  const loadTrips = () => { setTripError(''); api.trips(token).then(setTrips).catch(() => setTripError('Could not load saved trips. Tap to retry.')); };
+  useEffect(loadTrips, [token]);
   const request = useRef(0);
   const invalidate = () => { request.current++; setBusy(false); setResult(null); setError(''); };
   const options = items.filter(i => i.city === city && (query.trim() ? `${i.title} ${i.hood}`.toLowerCase().includes(query.trim().toLowerCase()) : saves.some(s => s.id === i.id) || must.includes(i.id)));
@@ -47,8 +56,16 @@ export function Itinerary({ top, onClose }: { top: number; onClose: () => void }
     }
   };
   return (
+    <>
+    {editor ? <TripEditor initial={editor} onClose={() => setEditor(null)} onSaved={saved => { setTrips(prev => [saved, ...prev.filter(t => t.id !== saved.id)]); }} /> : null}
     <ScrollView contentContainerStyle={{ paddingTop: top, paddingHorizontal: 22, paddingBottom: 130, gap: 18 }} keyboardShouldPersistTaps="handled">
       <Touch onPress={onClose}><T c={colors.plum}>← My lists</T></Touch>
+      <View style={{ gap: 10 }}>
+        <Eyebrow>Saved itineraries</Eyebrow>
+        {tripError ? <Touch onPress={loadTrips}><T c={colors.plum}>{tripError}</T></Touch> : null}
+        {!trips.length && !tripError ? <T s="soft" size={13}>Save a plan below to come back and edit it anytime.</T> : null}
+        {trips.map(t => <Touch key={t.id} onPress={() => setEditor(t)} style={{ padding: 14, backgroundColor: colors.surface, borderRadius: 12 }}><T s="med">{t.title} →</T><T s="soft" size={12}>{t.days[0].date} — {t.days[t.days.length - 1].date}</T></Touch>)}
+      </View>
       <View><T s="serif" size={36}>A trip that feels like you.</T><T s="soft" size={14} style={{ marginTop: 8 }}>Must-tries first, then your saves and recommendations from people you follow.</T></View>
       <CityChips city={city} onChange={c => { invalidate(); setCity(c); setMust([]); setQuery(''); }} />
       <Row style={{ gap: 10 }}>
@@ -69,12 +86,24 @@ export function Itinerary({ top, onClose }: { top: number; onClose: () => void }
       <Touch onPress={generate} disabled={busy || connection !== 'online'} style={{ padding: 16, backgroundColor: colors.plum, borderRadius: 14, alignItems: 'center' }}><T s="med" c="#fff">{busy ? 'Planning your days…' : 'Build my itinerary'}</T></Touch>
       {error ? <T accessibilityRole="alert" c={colors.plum}>{error}</T> : null}
       {result ? <>
-        <T s="soft" size={13}>Stops are grouped by neighborhood. Activity durations exclude travel. Check opening hours, reservations and the matched places in Maps before you go.</T>
+        <VerifyTrip trip={{ title: 'My trip', city, travel_mode: mode, revision: 0, days: result.days.map(d => ({ date: d.date, item_ids: d.stops.map(s => s.item.id), notes: '' })) }}
+          onApply={checked => setResult({ ...checked, unscheduled_count: result.unscheduled_count + checked.unscheduled_count, unscheduled_must_try_ids: [...new Set([...result.unscheduled_must_try_ids, ...(checked.review?.omitted ?? []).filter(o => must.includes(o.item_id)).map(o => o.item_id)])] })} />
+        <Touch onPress={() => setEditor({ id: Crypto.randomUUID(), title: 'My trip', city, travel_mode: mode, revision: 0, updated_at: '', days: result.days.map(d => ({ ...d, notes: result.review?.status === 'gemini' ? ['Original Gemini timing suggestion; recheck after edits.', ...d.stops.map(s => s.schedule ? `${s.schedule.arrival}–${s.schedule.departure} ${s.item.title}: ${s.schedule.hours} ${s.schedule.caution}` : '')].join('\n').slice(0, 2000) : '' })) })} style={{ padding: 16, backgroundColor: colors.plum, borderRadius: 14 }}><T s="med" c="#fff">Edit & save this itinerary →</T></Touch>
+        {result.review ? <View style={{ gap: 10, padding: 14, backgroundColor: colors.sunken, borderRadius: 12 }}>
+          <T s="med">{result.review.status === 'gemini' ? 'Gemini schedule suggestion' : 'Basic itinerary'}</T>
+          <T size={13}>{result.review.message}</T>
+          {result.review.status === 'gemini' ? <T s="soft" size={12}>Search-informed suggestions, not confirmed availability. Times are local; travel buffers are estimates. Recheck with venues before booking.</T> : null}
+          {result.review.omitted?.map(o => <T key={o.item_id} size={13}>{o.title}: {o.reason}</T>)}
+          {result.review.sources?.map((source, i) => <Touch key={`${source.url}-${i}`} onPress={() => Linking.openURL(source.url).catch(() => setError('Could not open source.'))}><T size={12} c={colors.plum}>[{i + 1}] {source.title} ↗</T></Touch>)}
+          {result.review.search_html ? <SearchSources html={result.review.search_html} /> : null}
+        </View> : null}
+        <T s="soft" size={13}>{result.review?.status === 'gemini' ? 'Visit times are suggestions based on search results.' : 'Stops are grouped by neighborhood.'} Activity durations exclude travel. Check opening hours, reservations and the matched places in Maps before you go.</T>
         {result.unscheduled_count > 0 ? <T c={colors.plum}>{result.unscheduled_count} picks didn’t fit{result.unscheduled_must_try_ids.length ? `, including ${result.unscheduled_must_try_ids.length} must-tries` : ''}. Add days or increase stops per day.</T> : null}
         {result.days.map((day, n) => <View key={day.date} style={{ padding: 18, backgroundColor: colors.surface, borderRadius: 18, gap: 12 }}>
           <T s="serif" size={26}>Day {n + 1} · {day.date.slice(5)}</T>
           <T s="soft" size={12}>{day.activity_minutes} min of activities</T>
           {day.stops.map((stop, index) => <View key={stop.item.id} style={{ borderLeftWidth: 2, borderLeftColor: colors.plumSoft, paddingLeft: 12, gap: 4 }}>
+            {stop.schedule ? <View style={{ gap: 4 }}><T s="med" c={colors.plum}>{stop.schedule.arrival}–{stop.schedule.departure} · suggested</T><T s="soft" size={12}>{stop.schedule.travel_minutes} min estimated transfer before stop</T><T size={12}>{stop.schedule.hours}</T>{stop.schedule.caution ? <T size={12} c={colors.plum}>{stop.schedule.caution}</T> : null}</View> : null}
             <T s="med">{index + 1}. {stop.item.title}</T>
             <T s="soft" size={12}>{stop.item.hood} · {stop.item.duration_min} min</T>
             <T c={colors.plum} size={12}>{stop.reasons.join(' · ')}</T>
@@ -85,5 +114,6 @@ export function Itinerary({ top, onClose }: { top: number; onClose: () => void }
         </View>)}
       </> : null}
     </ScrollView>
+    </>
   );
 }

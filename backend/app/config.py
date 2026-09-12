@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     auth0_domain: str = ""
     auth0_audience: str = "https://rove.api"
 
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.8-flash"
+
     port: int = 8000
     cors_origins: str = "*"
     #: Set ENV=production to refuse to start without Auth0 configured.
