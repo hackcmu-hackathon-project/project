@@ -5,7 +5,7 @@ import { Hatch, T, Touch } from '../components/ui';
 import { useAuth } from '../auth';
 
 export function SignIn() {
-  const { signIn, signInAsGuest, loading, configured } = useAuth();
+  const { signIn, signInAsGuest, loading, configured, error } = useAuth();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Hatch style={{ flex: 1 }} />
@@ -31,9 +31,15 @@ export function SignIn() {
             >
               <T s="med" size={15}>I already have one</T>
             </Touch>
-            <T s="soft" size={12} style={{ marginTop: 14, textAlign: 'center', color: colors.faint }}>
-              Email, Google or Apple — handled by Auth0
-            </T>
+            {error ? (
+              <T s="soft" size={12.5} style={{ marginTop: 14, textAlign: 'center', color: colors.plum }}>
+                {error}
+              </T>
+            ) : (
+              <T s="soft" size={12} style={{ marginTop: 14, textAlign: 'center', color: colors.faint }}>
+                Email, Google or Apple — handled by Auth0
+              </T>
+            )}
           </>
         ) : (
           <>
@@ -46,10 +52,10 @@ export function SignIn() {
             <View style={{ marginTop: 16, padding: 16, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line }}>
               <T s="semi" size={13}>Auth0 isn’t configured yet</T>
               <T s="soft" size={12.5} style={{ marginTop: 6, lineHeight: 19 }}>
-                Put your tenant’s domain and client ID in{' '}
-                <T s="semi" size={12.5}>.env</T> as EXPO_PUBLIC_AUTH0_DOMAIN and
-                EXPO_PUBLIC_AUTH0_CLIENT_ID, set AUTH0_DOMAIN in backend/.env, and real
-                sign-up appears here. Until then everything runs as one local dev account.
+                Set EXPO_PUBLIC_AUTH0_DOMAIN, EXPO_PUBLIC_AUTH0_CLIENT_ID and
+                EXPO_PUBLIC_AUTH0_AUDIENCE in <T s="semi" size={12.5}>.env</T>, and
+                AUTH0_DOMAIN in backend/.env — see docs/auth0.md. Until then everything
+                runs as one local dev account.
               </T>
             </View>
           </>
