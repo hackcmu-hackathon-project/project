@@ -70,9 +70,11 @@ def main() -> int:
         check("PATCH /api/rankings/{id}", note.status_code == 200, note.text[:80])
 
         print("saves")
-        check("PUT /api/saves/{id}", c.put(f"/api/saves/{new_id}").status_code == 204)
-        check("GET /api/saves", any(i["id"] == new_id for i in c.get("/api/saves").json()))
-        check("DELETE /api/saves/{id}", c.delete(f"/api/saves/{new_id}").status_code == 204)
+        check("saving a ranked place is refused", c.put(f"/api/saves/{new_id}").status_code == 409)
+        unranked = next((i for i in items if not any(r["item_id"] == i["id"] for r in mine)), None)
+        check("PUT /api/saves/{id}", unranked and c.put(f"/api/saves/{unranked['id']}").status_code == 204)
+        check("GET /api/saves", any(i["id"] == unranked["id"] for i in c.get("/api/saves").json()))
+        check("DELETE /api/saves/{id}", c.delete(f"/api/saves/{unranked['id']}").status_code == 204)
 
         print("people")
         everyone = c.get("/api/people").json() + c.get("/api/people/following").json()
@@ -106,6 +108,8 @@ def main() -> int:
         print("cleanup")
         check("DELETE /api/rankings/{id}", c.delete(f"/api/rankings/{new_id}").status_code == 204)
         check("ranking is gone", not any(r["item_id"] == new_id for r in c.get("/api/rankings").json()))
+        check("DELETE /api/items/{id}", c.delete(f"/api/items/{new_id}").status_code == 204)
+        check("place is gone", c.get(f"/api/items/{new_id}").status_code == 404)
 
     print(f"\n{ok} passed, {len(failed)} failed")
     for f in failed:

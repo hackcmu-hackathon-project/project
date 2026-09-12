@@ -308,6 +308,24 @@ async def create_item(
 # --------------------------------------------------------------------- rankings
 
 
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_item(
+    item_id: int,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Remove a place you added, as long as nobody (including you) has ranked it."""
+    item = await db.items.find_one({"id": item_id}, {"created_by": 1})
+    if not item:
+        return
+    if item.get("created_by") != user.sub:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only whoever added it can remove it")
+    if await db.rankings.count_documents({"item_id": item_id}):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Somebody has ranked this — it stays")
+    await db.items.delete_one({"id": item_id})
+    await db.saves.delete_many({"item_id": item_id})
+
+
 @router.get("/rankings")
 async def my_rankings(
     city: City | None = None,

@@ -62,7 +62,7 @@ def collect(city: str, per_city: int) -> list[dict]:
         if lat is None:
             continue
         extract = page.get("extract", "")
-        category = classify(f"{page['title']} {extract[:400]}") or "Landmark"
+        category = classify(f"{page['title']} {extract[:400]}", page["title"]) or "Landmark"
         thumb = (page.get("thumbnail") or {}).get("source")
         out.append(
             {

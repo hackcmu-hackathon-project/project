@@ -189,8 +189,15 @@ def details(titles: list[str]) -> list[dict]:
     return pages
 
 
-def classify(text: str) -> str | None:
+def classify(text: str, title: str = "") -> str | None:
+    """What kind of thing this is. A keyword in the title beats one in the body —
+    "Coit Tower" is a landmark even though its article talks about the park."""
     low = text.lower()
+    if title:
+        name = title.lower()
+        for category, words in CATEGORY_RULES:
+            if any(w in name for w in words):
+                return category
     for category, words in CATEGORY_RULES:
         if any(w in low for w in words):
             return category
@@ -225,7 +232,7 @@ def keep(page: dict) -> bool:
     if any(d in extract[:160].lower() for d in DEFUNCT):
         return False
 
-    return classify(f"{title} {extract[:600]}".lower()) is not None
+    return classify(f"{title} {extract[:600]}", title) is not None
 
 
 def first_sentences(extract: str, limit: int = 260) -> str:

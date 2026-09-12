@@ -55,7 +55,8 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 | `GET /api/items?city=&category=&q=` | the catalogue |
 | `POST /api/items` | add a place (sf/nyc only); a photo is resolved for it on the way in |
 | `GET /api/categories` | the fixed category list with counts |
-| `GET /api/saves`, `PUT/DELETE /api/saves/{id}` | your want-to-go list |
+| `DELETE /api/items/{id}` | remove a place you added, if nobody has ranked it |
+| `GET /api/saves`, `PUT/DELETE /api/saves/{id}` | your want-to-go list (409 if you've ranked it) |
 | `GET /api/activity/{sub}/{item}` | one person's ranking with its reactions and comments |
 | `PUT/DELETE .../reaction` | set or clear your emoji |
 | `POST .../comments`, `DELETE /api/comments/{id}` | comment, and delete your own |
@@ -105,7 +106,9 @@ A "post" is a person's ranking of an item, addressed by `(sub, item_id)` — the
 is no separate post document to keep in sync. Reactions are one emoji per person
 per post from a fixed palette; comments are a flat thread, and you can only
 delete your own. Both are optimistic in the UI. "Want to go" saves an item to
-your list, which is what the Lists tab's second section shows.
+your list, which is what the Lists tab's second section shows. Want-to-go and ranked
+are mutually exclusive: ranking something retires its save, and the API refuses to save
+a place you've already ranked.
 
 ## Deploying the API
 
@@ -124,7 +127,7 @@ cd backend && .venv/bin/python smoke_test.py
 
 Exercises every endpoint against a running API as the dev user — catalogue,
 search, creating a place, a full ranking session, saves, follows, reactions,
-comments — and cleans up after itself. 30 checks; it prints what failed.
+comments — and cleans up after itself. 33 checks; it prints what failed.
 
 ## Accounts and following
 
@@ -150,14 +153,20 @@ Two cities, about a hundred things to do in each, plus a hand-written core.
   `npm run gen:seed`.
 * `python fetch_places.py --per-city 100` — imports well-known places from
   Wikipedia: geosearch around each city, filtered to things you'd actually go do
-  and ranked by how many language editions carry the article. Neighborhoods come
-  from coordinates, photos from the article's lead image. Imported ids start at
-  1000 so they never collide with the curated set.
+  (not events, not stations, not offices) and ranked by how many language
+  editions carry the article. Neighborhoods come from coordinates, photos from
+  the article's lead image, and article payloads are cached in
+  `.wiki_cache.json` so re-running with different filters costs nothing.
 * `python fetch_photos.py` — fills in photos for anything still missing one,
   from [Openverse](https://openverse.org) (openly licensed, no API key). Credit
   and license travel with the URL and are shown on the detail screen.
 * Anything missing, you add in the app: **＋ → Add a new place** writes to the
   catalogue for everyone and resolves a photo on the way in.
+
+**Ids are stable and partitioned**: 1-99 is the hand-written seed, 100-999,999 is
+whatever people add in the app, and 1,000,000+ is `1,000,000 + Wikipedia page id`.
+That last part matters — re-importing must never hand an id that someone has already
+ranked to a different place.
 
 Categories are a fixed constant in two places that must agree —
 `CATEGORIES` in `backend/app/models.py` and in `src/theme.ts`. There is
