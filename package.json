@@ -20,7 +20,6 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-gesture-handler": "~2.32.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-web": "^0.21.2"
   },
@@ -41,7 +40,8 @@
     "api:seed": "cd backend && .venv/bin/python seed.py --demo-people --dev-user --reset",
     "api:places": "cd backend && .venv/bin/python fetch_places.py --per-city 100",
     "api:test": "cd backend && .venv/bin/python smoke_test.py",
-    "dev": "concurrently -n db,api,app -c gray,magenta,green \"npm run db\" \"npm run api\" \"npm run web\""
+    "dev": "concurrently -n db,api,app -c gray,magenta,green \"npm run db\" \"npm run api\" \"npm run web\"",
+    "db:shell": "docker exec -it rove-mongo mongosh rove"
   },
   "private": true
 }

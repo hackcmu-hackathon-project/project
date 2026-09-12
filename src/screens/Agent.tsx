@@ -55,7 +55,10 @@ export function Agent({
   return (
     <View style={{ flex: 1 }}>
       <Row style={{ paddingHorizontal: 22, paddingTop: top + 8, alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <T s="serif" size={36}>Ask</T>
+        <View>
+          <T s="serif" size={36}>Ask</T>
+          <T s="soft" size={11.5} c={colors.faint} style={{ marginTop: -2 }}>Powered by Gemini</T>
+        </View>
         {entries.length ? (
           <Touch onPress={() => setEntries([])}><T s="soft" size={13}>Clear</T></Touch>
         ) : null}
