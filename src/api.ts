@@ -86,6 +86,10 @@ export type RankState = {
   total: number | null;
 };
 
+/** Uploaded photos are served by the API itself, so relative URLs need the host. */
+const absolute = (url: string | null | undefined): string | null =>
+  !url ? null : url.startsWith('/') ? `${API_URL}${url}` : url;
+
 export const toItem = (a: ApiItem): Item => ({
   id: a.id,
   city: a.city,
@@ -99,8 +103,8 @@ export const toItem = (a: ApiItem): Item => ({
   tip: a.tip ?? '',
   tags: a.tags ?? [],
   img: a.img ?? 'photo',
-  photo: a.photo_url ?? null,
-  photoThumb: a.photo_thumb ?? a.photo_url ?? null,
+  photo: absolute(a.photo_url),
+  photoThumb: absolute(a.photo_thumb ?? a.photo_url),
   photoCredit: a.photo_credit ?? null,
   photoLicense: a.photo_license ?? null,
   photoSource: a.photo_source_url ?? null,
@@ -210,6 +214,28 @@ export const api = {
     toRankState(
       await call('/api/rank/compare', token, { method: 'POST', body: JSON.stringify({ session_id: sessionId, winner }) })
     ),
+  /** Upload a photo for a place. `file` is what the picker handed us. */
+  uploadPhoto: async (
+    token: string | null,
+    itemId: number,
+    file: { uri: string; name: string; type: string }
+  ): Promise<Item> => {
+    const body = new FormData();
+    if (file.uri.startsWith('data:') || file.uri.startsWith('blob:')) {
+      // Web: the picker gives a blob/data URI, which fetch can turn into a File.
+      const blob = await (await fetch(file.uri)).blob();
+      body.append('file', new File([blob], file.name, { type: file.type }));
+    } else {
+      body.append('file', { uri: file.uri, name: file.name, type: file.type } as any);
+    }
+    const res = await fetch(`${API_URL}/api/items/${itemId}/photo`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body,
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return toItem(await res.json());
+  },
   createItem: async (
     token: string | null,
     body: { city: string; title: string; hood: string; category: string; duration_min?: number; price?: number; note?: string; tip?: string; best_time?: string }

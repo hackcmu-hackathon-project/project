@@ -130,7 +130,7 @@ export function Activity({
       </Row>
 
       <Touch onPress={() => onOpenItem(item.id)} style={{ paddingHorizontal: 22, paddingTop: 16 }}>
-        <Photo uri={item.photo} radius={radius.lg} style={{ height: 190 }} />
+        <Photo uri={item.photo} label={item.title} radius={radius.lg} style={{ height: 190 }} />
         <T s="serif" size={24} style={{ marginTop: 12, lineHeight: 27 }}>{item.title}</T>
         <T s="soft" size={12.5} style={{ marginTop: 4 }}>
           {CITIES[item.city]} · {meta(item)}

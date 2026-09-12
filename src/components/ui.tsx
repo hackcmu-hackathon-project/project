@@ -64,23 +64,35 @@ export function Photo({
   uri,
   style,
   radius: r,
+  label,
   children,
 }: {
   uri?: string | null;
   style?: StyleProp<ViewStyle>;
   radius?: number;
+  /** Shown on the placeholder when there's no photo — usually the item title. */
+  label?: string;
   children?: React.ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
+  const missing = !uri || failed;
   return (
     <Hatch style={[{ borderRadius: r }, style]}>
-      {uri && !failed ? (
+      {!missing ? (
         <Image
           source={{ uri }}
           onError={() => setFailed(true)}
           resizeMode="cover"
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         />
+      ) : null}
+      {/* A monogram reads as a deliberate placeholder; an empty tile reads as broken. */}
+      {missing && label ? (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: font.serif, fontSize: 34, color: 'rgba(28,26,25,0.22)' }}>
+            {label.replace(/^(the|a|an)\s+/i, '').trim().charAt(0).toUpperCase()}
+          </Text>
+        </View>
       ) : null}
       {children}
     </Hatch>

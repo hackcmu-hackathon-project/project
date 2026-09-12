@@ -101,7 +101,7 @@ export function Feed({
 
             <Touch onPress={() => open(f)}>
               <Row style={{ gap: 14, alignItems: 'flex-start' }}>
-                <Photo uri={item.photoThumb ?? item.photo} radius={12} style={{ width: 96, height: 96 }} />
+                <Photo uri={item.photoThumb ?? item.photo} label={item.title} radius={12} style={{ width: 96, height: 96 }} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <T s="serif" size={22} style={{ lineHeight: 25, marginBottom: 4 }}>{item.title}</T>
                   <T s="soft" size={12} style={{ marginBottom: 8 }}>{meta(item)}</T>

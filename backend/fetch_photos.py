@@ -21,14 +21,21 @@ async def main(force: bool) -> None:
 
     found = 0
     for item in items:
-        q = photo_query_for(item)
-        photo = await find_photo(q)
+        # Try the specific query first, then the bare name — "Church of the
+        # Epiphany Excelsior San Francisco" finds nothing, "Church of the
+        # Epiphany" finds something.
+        attempts = [photo_query_for(item), item["title"], f"{item['title']} {item['city'] == 'sf' and 'San Francisco' or 'New York'}"]
+        photo = None
+        for q in dict.fromkeys(attempts):
+            photo = await find_photo(q)
+            if photo:
+                break
         if photo:
             await db.items.update_one({"id": item["id"]}, {"$set": photo})
             found += 1
             print(f"  ✓ {item['title'][:44]:46} ← {photo['photo_title'][:36]}")
         else:
-            print(f"  · {item['title'][:44]:46} (nothing for “{q}”)")
+            print(f"  · {item['title'][:44]:46} (nothing found)")
 
     print(f"{found}/{len(items)} resolved")
     await close_client()

@@ -4,6 +4,7 @@ import { colors, radius, shadow, fmtScore, scoreColors } from '../theme';
 import { CITIES, meta } from '../data';
 import { Eyebrow, Initials, Photo, Row, ScoreDot, T, Touch } from '../components/ui';
 import { useStore } from '../store';
+import { pickPhoto } from '../photoPicker';
 import { ItemRanking, api } from '../api';
 import { useAuth } from '../auth';
 
@@ -31,7 +32,8 @@ export function Detail({
   onRank: (id: number) => void;
   onOpenActivity: (owner: string, itemId: number) => void;
 }) {
-  const { me, items, connection, toggleSave, isSaved, unrank } = useStore();
+  const { me, items, connection, toggleSave, isSaved, unrank, uploadPhoto } = useStore();
+  const [photoBusy, setPhotoBusy] = useState(false);
   const { token } = useAuth();
   const [theirs, setTheirs] = useState<ItemRanking[]>([]);
 
@@ -57,7 +59,7 @@ export function Detail({
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
-      <Photo uri={item.photo} style={{ height: 300, justifyContent: 'flex-end', paddingHorizontal: 22, paddingBottom: 22 }}>
+      <Photo uri={item.photo} label={item.title} style={{ height: 300, justifyContent: 'flex-end', paddingHorizontal: 22, paddingBottom: 22 }}>
         <Touch
           onPress={onClose}
           style={{ position: 'absolute', top: top + 10, left: 18, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }}
@@ -164,6 +166,27 @@ export function Detail({
       {item.wikipedia ? (
         <Touch onPress={() => Linking.openURL(item.wikipedia!)} style={{ paddingHorizontal: 22, paddingTop: 18 }}>
           <T s="med" size={13} c={colors.plum}>Read about it on Wikipedia →</T>
+        </Touch>
+      ) : null}
+
+      {connection === 'online' ? (
+        <Touch
+          onPress={async () => {
+            const file = await pickPhoto();
+            if (!file) return;
+            setPhotoBusy(true);
+            try {
+              await uploadPhoto(item.id, file);
+            } finally {
+              setPhotoBusy(false);
+            }
+          }}
+          style={{ paddingHorizontal: 22, paddingTop: 18 }}
+          label="Add your own photo"
+        >
+          <T s="med" size={13} c={colors.plum}>
+            {photoBusy ? 'Uploading…' : item.photo ? 'Use your own photo instead →' : 'Add a photo →'}
+          </T>
         </Touch>
       ) : null}
 

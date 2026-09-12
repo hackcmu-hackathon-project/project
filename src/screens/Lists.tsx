@@ -41,7 +41,7 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
       {list.map((r, i) => (
         <Touch key={r.id} onPress={() => onOpen(r.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 13, borderTopWidth: 1, borderTopColor: '#ebe6df' }}>
           <T s="serif" size={20} c={colors.faint} style={{ width: 22, textAlign: 'right' }}>{i + 1}</T>
-          <Photo uri={r.photoThumb ?? r.photo} radius={10} style={{ width: 52, height: 52 }} />
+          <Photo uri={r.photoThumb ?? r.photo} label={r.title} radius={10} style={{ width: 52, height: 52 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <T s="med" size={15} style={{ lineHeight: 19 }}>{r.title}</T>
             <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(r)}</T>
@@ -72,7 +72,7 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
       {want.map((w) => (
         <Touch key={w.id} onPress={() => onRank(w.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#ebe6df' }}>
           <View style={{ width: 22 }} />
-          <Photo uri={w.photoThumb ?? w.photo} radius={10} style={{ width: 52, height: 52 }} />
+          <Photo uri={w.photoThumb ?? w.photo} label={w.title} radius={10} style={{ width: 52, height: 52 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <T s="med" size={15} style={{ lineHeight: 19 }}>{w.title}</T>
             <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(w)}</T>
