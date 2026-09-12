@@ -9,8 +9,11 @@ import { OfflineBanner } from '../components/Offline';
 export function Lists({ top, onOpen, onRank, onPlan }: { onPlan: () => void; top: number; onOpen: (id: number) => void; onRank: (id: number) => void }) {
   const { city, setCity, ranked, saves, connection, refresh } = useStore();
   const list = ranked(city);
-  const want = saves.filter((s) => s.city === city);
-  const elsewhere = saves.length - want.length;
+  // The API already drops anything you've ranked; this keeps the optimistic
+  // local state honest between a rank and the next refresh.
+  const unvisited = saves.filter((s) => s.score == null);
+  const want = unvisited.filter((s) => s.city === city);
+  const elsewhere = unvisited.length - want.length;
   const otherCity = city === 'sf' ? 'nyc' : 'sf';
   const [refreshing, setRefreshing] = useState(false);
   const pull = async () => {

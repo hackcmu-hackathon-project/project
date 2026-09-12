@@ -9,6 +9,7 @@ office towers and (deliberately) anything that is really a restaurant or bar.
 
 import json
 import pathlib
+import re
 import urllib.parse
 import urllib.request
 
@@ -66,7 +67,7 @@ CITY_POINTS = {
 CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("Culture", ("festival", "street fair", "parade", "carnival", "film series")),
     ("Sports", ("stadium", "arena", "ballpark", "racetrack", "speedway", "sports venue",
-                "golf course", "ice rink", "skating rink", "bowling", "climbing gym", "velodrome")),
+                "golf course", "ice rink", "skating rink", "bowling alley", "climbing gym", "velodrome")),
     ("Music", ("concert hall", "music venue", "opera house", "jazz club", "amphitheat", "bandshell",
                "music hall", "live music", "recital hall")),
     ("Nightlife", ("nightclub", "comedy club", "cabaret", "burlesque")),
@@ -80,13 +81,6 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
          "mural", "public art", "installation", "archive", "science center"),
     ),
     (
-        "Outdoors",
-        ("park", "garden", "beach", "trail", "greenway", "pier", "waterfront", "island",
-         "nature", "wildlife", "refuge", "hill", "lake", "reservoir", "promenade", "boardwalk",
-         "playground", "esplanade", "marina", "harbor", "harbour", "creek", "bay", "peak",
-         "summit", "canyon", "dunes", "meadow", "campground", "overlook", "scenic"),
-    ),
-    (
         "Landmark",
         ("bridge", "monument", "memorial", "tower", "lighthouse", "landmark", "cathedral",
          "basilica", "observation deck", "square", "plaza", "historic district", "fort",
@@ -94,7 +88,24 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
          "historic site", "national register", "historic place", "mansion", "house museum",
          "terminal", "arch", "obelisk", "fountain", "gate", "ruins", "shrine", "temple"),
     ),
+    (
+        "Outdoors",
+        ("park", "garden", "beach", "trail", "greenway", "pier", "waterfront", "island",
+         "nature", "wildlife", "refuge", "hill", "lake", "reservoir", "promenade", "boardwalk",
+         "playground", "esplanade", "marina", "peak", "summit", "canyon", "dunes",
+         "meadow", "campground", "overlook", "scenic"),
+    ),
+
 ]
+
+#: Titles that are streets, numbered avenues and the like.
+TITLE_PATTERNS = (
+    re.compile(r"^\d+(st|nd|rd|th)\s"),                       # 34th Street
+    re.compile(r"\b(street|avenue|boulevard|road|drive|parkway|expressway|turnpike)$"),
+    re.compile(r"^(list|timeline|history|culture|economy|geography|demographics) of"),
+    # "Cole Valley, San Francisco" — an article about a place-name, not a place to go.
+    re.compile(r",\s*(san francisco|new york|queens|brooklyn|manhattan|the bronx|staten island)$"),
+)
 
 #: Words that disqualify a place when they appear in its *title*.
 TITLE_EXCLUDE = (
@@ -103,12 +114,25 @@ TITLE_EXCLUDE = (
     "police", "fire station", "post office", "courthouse", "prison", "jail",
     "cemetery", "synagogue", "mosque", "archdiocese", "diocese",
     "apartments", "tower (", "plaza (skyscraper)", "housing",
-    "list of", "timeline of", "history of", "culture of", "economy of",
+    "hotel", "motel", "inn (", "hostel", "condominium",
+    "company", "corporation", "bank of", "insurance",
 )
 
 #: Phrases in the opening sentence that mean it isn't a place you go do something.
 EXCLUDE = (
-    "is a school", "is a private school", "is a public school", "is a university",
+    # Phrasings that survive an adjective or two: "is a major crosstown street in…"
+    " street in ", " avenue in ", " boulevard in ", " road in ", " thoroughfare",
+    " hotel in ", " hotel located", " skyscraper", " office tower", " office building",
+    " residential building", " apartment building", " housing development",
+    " subway station", " railway station", " bus terminal", " is a neighborhood",
+    " is a neighbourhood", " is a district", " is a village", " is a hamlet",
+    " is a town", " is a borough", " is a census-designated",
+    " is a public broadcasting", " is a television", " is a radio",
+    " is a private club", " is a social club", " is a gentlemen's club",
+    " is a research", " is an institute", " is a graduate school",
+    " is a public university", " is a retailer", " is a clothing",
+    " is a brand", " is a chain", " is a department store chain",
+    " is a school", "is a private school", "is a public school", "is a university",
     "is a college", "is a hospital", "is a medical", "is a station", "is an airport",
     "is an office", "is a skyscraper", "is a commercial", "is a company", "is a bank",
     "is an apartment", "is a residential", "is a hotel", "is a condominium",
@@ -130,12 +154,52 @@ DEFUNCT = ("was a ", "was an ", "was the ", "former", "demolished", "closed in",
 EVENTS = (
     "earthquake", "fire of", "riot", "massacre", "disaster", "terrorist", "attack on",
     "protest", "epidemic", "pandemic", "crash", "shooting", "bombing", "blackout",
-    "took place", "was held", "is an annual event", "is a festival held",
+    "took place", "was held", "held in", "held each", "held every", "annual",
     "world's fair", "exposition of", "olympics", "election",
+    "battle of", "battle at", "collision", "derailment", "accident", "siege",
 )
 
 DURATION = {"Outdoors": 90, "Culture": 90, "Landmark": 45, "Music": 120, "Nightlife": 120, "Sports": 180, "Shop": 60}
+
+
+def tags_for(category: str, price: int, duration_min: int) -> list[str]:
+    """Small, true facts — better than echoing the category back."""
+    tags = []
+    if price == 0:
+        tags.append("free")
+    if duration_min <= 45:
+        tags.append("quick")
+    if duration_min >= 150:
+        tags.append("half a day")
+    if category in ("Outdoors", "Landmark"):
+        tags.append("outside")
+    if category in ("Culture", "Shop"):
+        tags.append("rainy-day")
+    return tags
 PRICE = {"Outdoors": 0, "Landmark": 0, "Culture": 2, "Music": 3, "Nightlife": 2, "Sports": 3, "Shop": 1}
+
+
+#: Nouns that mean the article is about an institution, a business or an area —
+#: checked against the definition, so an adjective in between doesn't hide them
+#: ("is a private college", "is a public broadcasting organization").
+NOT_A_PLACE = (
+    "college", "university", "school", "academy", "hospital", "medical center",
+    "station", "airport", "hotel", "motel", "hostel", "company", "corporation",
+    "retailer", "brand", "chain", "broadcaster", "television", "radio", "newspaper",
+    "institute", "laboratory", "nonprofit", "non-profit", "agency", "charity",
+    "village", "hamlet", "town", "borough", "neighborhood", "neighbourhood",
+    "census-designated", "residential", "apartment", "office building", "skyscraper",
+    "law firm", "bank", "startup", "think tank", "trade union",
+    "financial services", "brokerage", "airline", "utility",
+    # Geography with no destination to it.
+    "bay", "ledge", "strait", "inlet", "channel", "tributary", "watershed",
+)
+
+NOT_A_PLACE_RE = re.compile(r"\b(?:%s)\b" % "|".join(NOT_A_PLACE), re.I)
+
+#: Word-bounded so "is a pub" can't strike out "is a public park".
+EXCLUDE_RE = re.compile(r"\b(?:%s)\b" % "|".join(re.escape(x.strip()) for x in EXCLUDE), re.I)
+EVENTS_RE = re.compile(r"\b(?:%s)\b" % "|".join(re.escape(x.strip()) for x in EVENTS), re.I)
 
 
 def _api(**params) -> dict:
@@ -189,6 +253,20 @@ def details(titles: list[str]) -> list[dict]:
     return pages
 
 
+DEFINITION = re.compile(r"\b(?:is|was|are)\s+(?:a|an|the)\s+(.{0,140})", re.I)
+
+
+def definition(extract: str) -> str:
+    """The "… is a *what*" part of the opening sentence.
+
+    Classifying on this instead of the whole article is what separates
+    "Coit Tower is a 210-foot tower" from "Hewlett Bay Park is a village".
+    """
+    head = " ".join(extract.split())[:400]
+    match = DEFINITION.search(head)
+    return (match.group(1) if match else head)[:140]
+
+
 def classify(text: str, title: str = "") -> str | None:
     """What kind of thing this is. A keyword in the title beats one in the body —
     "Coit Tower" is a landmark even though its article talks about the park."""
@@ -218,13 +296,15 @@ def keep(page: dict) -> bool:
     title = page.get("title", "").lower()
     if any(x in title for x in TITLE_EXCLUDE):
         return False
+    if any(p.search(title) for p in TITLE_PATTERNS):
+        return False
 
     # Only the opening sentence describes what the thing *is*; later sentences
     # mention schools, stations and companies for places that are none of those.
-    opening = extract[:220].lower()
-    if any(x in opening for x in EXCLUDE):
+    opening = extract[:220]
+    if EXCLUDE_RE.search(opening):
         return False
-    if any(x in opening for x in EVENTS) or any(x in title for x in EVENTS):
+    if EVENTS_RE.search(opening) or EVENTS_RE.search(title):
         return False
     # "1906 San Francisco earthquake", "1964 World's Fair" — a leading year means an event.
     if title[:4].isdigit():
@@ -232,7 +312,12 @@ def keep(page: dict) -> bool:
     if any(d in extract[:160].lower() for d in DEFUNCT):
         return False
 
-    return classify(f"{title} {extract[:600]}", title) is not None
+    # The article has to say it *is* one of the kinds of thing you can go do,
+    # and not one of the kinds of thing that merely has an address.
+    what_it_is = definition(extract)
+    if NOT_A_PLACE_RE.search(what_it_is):
+        return False
+    return classify(what_it_is) is not None
 
 
 def first_sentences(extract: str, limit: int = 260) -> str:
