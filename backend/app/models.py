@@ -4,8 +4,10 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Tier = Literal["loved", "liked", "okay"]
-#: Rove supports exactly two cities.
-City = Literal["sf", "nyc"]
+#: The cities Rove covers. Add one here, in CITY_NAMES, in neighborhoods.py and
+#: in places_source.CITY_POINTS, and the rest of the stack follows.
+CITY_NAMES = {"sf": "San Francisco", "nyc": "New York", "pgh": "Pittsburgh"}
+City = Literal["sf", "nyc", "pgh"]
 #: Rove is about things to *do*. Restaurants and bars are Beli's job.
 CATEGORIES = ("Outdoors", "Culture", "Landmark", "Music", "Nightlife", "Sports", "Shop")
 Category = Literal["Outdoors", "Culture", "Landmark", "Music", "Nightlife", "Sports", "Shop"]

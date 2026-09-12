@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "concurrently": "^10.0.5",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -34,11 +35,13 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "api": "cd backend && .venv/bin/uvicorn app.main:app --port 8010 --reload",
-    "db": "cd backend && docker compose up -d",
+    "db": "docker compose up -d mongo",
     "gen:seed": "node scripts/gen-seed.mjs",
     "api:seed": "cd backend && .venv/bin/python seed.py --demo-people --dev-user --reset",
     "api:places": "cd backend && .venv/bin/python fetch_places.py --per-city 100",
-    "api:test": "cd backend && .venv/bin/python smoke_test.py"
+    "api:test": "cd backend && .venv/bin/python smoke_test.py",
+    "dev": "concurrently -n db,api,app -c gray,magenta,green \"npm run db\" \"npm run api\" \"npm run web\"",
+    "db:shell": "docker exec -it rove-mongo mongosh rove"
   },
   "private": true
 }

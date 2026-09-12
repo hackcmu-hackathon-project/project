@@ -61,6 +61,22 @@ CITY_POINTS = {
         (40.7549, -73.9840),  # Times Square
         (40.8296, -73.9262),  # Harlem / Upper Manhattan
     ],
+    "pgh": [
+        (40.4417, -79.9959),  # Downtown / the Point
+        (40.4440, -79.9530),  # Oakland — museums and campuses
+        (40.4700, -79.9620),  # Lawrenceville
+        (40.4280, -79.9730),  # South Side
+        (40.4310, -80.0090),  # Mount Washington
+        (40.4620, -79.9250),  # East Liberty / Shadyside
+        (40.4560, -80.0110),  # North Side
+        (40.4360, -79.9440),  # Schenley Park
+        (40.4620, -79.9500),  # Bloomfield / Polish Hill
+        (40.4380, -79.9230),  # Squirrel Hill
+        (40.4470, -79.9060),  # Point Breeze / Frick Park
+        (40.4560, -79.8960),  # Homewood
+        (40.4390, -80.0290),  # West End
+        (40.4110, -80.0250),  # Beechview / Brookline
+    ],
 }
 
 #: Category keywords, most specific first. Order matters.
@@ -85,6 +101,7 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
         ("bridge", "monument", "memorial", "tower", "lighthouse", "landmark", "cathedral",
          "basilica", "observation deck", "square", "plaza", "historic district", "fort",
          "castle", "carousel", "clock", "statue", "sculpture", "ferry", "cable car",
+         "incline", "funicular", "tramway", "aerial tram",
          "historic site", "national register", "historic place", "mansion", "house museum",
          "terminal", "arch", "obelisk", "fountain", "gate", "ruins", "shrine", "temple"),
     ),
@@ -182,19 +199,34 @@ PRICE = {"Outdoors": 0, "Landmark": 0, "Culture": 2, "Music": 3, "Nightlife": 2,
 #: Nouns that mean the article is about an institution, a business or an area —
 #: checked against the definition, so an adjective in between doesn't hide them
 #: ("is a private college", "is a public broadcasting organization").
-NOT_A_PLACE = (
-    "college", "university", "school", "academy", "hospital", "medical center",
-    "station", "airport", "hotel", "motel", "hostel", "company", "corporation",
-    "retailer", "brand", "chain", "broadcaster", "television", "radio", "newspaper",
-    "institute", "laboratory", "nonprofit", "non-profit", "agency", "charity",
+#: Nouns that settle it whatever the title says — a tower can be a landmark, but
+#: not if the article calls it a skyscraper.
+HARD_NOT_A_PLACE = (
+    # Somewhere you attend a thing, not somewhere you go: conference halls, and
+    # recurring exhibitions that are an event with a name rather than a place.
+    "convention", "conference center", "conference centre", "exhibition building",
+    "exhibition hall", "exhibition of", "trade show", "biennial", "triennial", "art fair",
+    "skyscraper", "office building", "office tower", "residential", "apartment",
+    "hotel", "motel", "hostel", "condominium", "housing development",
+    "school", "college", "university", "academy", "hospital", "medical center",
+    "station", "airport", "bank", "law firm", "prison",
     "village", "hamlet", "town", "borough", "neighborhood", "neighbourhood",
-    "census-designated", "residential", "apartment", "office building", "skyscraper",
-    "law firm", "bank", "startup", "think tank", "trade union",
-    "financial services", "brokerage", "airline", "utility",
-    # Geography with no destination to it.
-    "bay", "ledge", "strait", "inlet", "channel", "tributary", "watershed",
+    "census-designated", "bay", "ledge", "strait", "inlet", "channel",
+    "tributary", "watershed",
 )
 
+#: Nouns about who runs a place rather than what it is. A title that names the
+#: venue type outranks these.
+SOFT_NOT_A_PLACE = (
+    "company", "corporation", "retailer", "brand", "chain", "broadcaster",
+    "television", "radio", "newspaper", "institute", "laboratory", "nonprofit",
+    "non-profit", "agency", "charity", "think tank", "trade union", "startup",
+    "financial services", "brokerage", "airline", "utility",
+)
+
+NOT_A_PLACE = HARD_NOT_A_PLACE + SOFT_NOT_A_PLACE
+
+HARD_NOT_A_PLACE_RE = re.compile(r"\b(?:%s)\b" % "|".join(HARD_NOT_A_PLACE), re.I)
 NOT_A_PLACE_RE = re.compile(r"\b(?:%s)\b" % "|".join(NOT_A_PLACE), re.I)
 
 #: Word-bounded so "is a pub" can't strike out "is a public park".
@@ -221,13 +253,18 @@ def geosearch(lat: float, lon: float, radius: int = 10000, limit: int = 500) -> 
 def details(titles: list[str]) -> list[dict]:
     """Extract, thumbnail, coordinates and language count for up to 50 articles."""
     cache = _load_cache()
-    pages: list[dict] = [cache[t] for t in titles if t in cache]
-    missing = [t for t in titles if t not in cache]
+    # A cached page with no extract came from the era when we asked for 50 at a
+    # time; treat it as a miss so it gets refetched properly.
+    fresh = {t for t in titles if t in cache and "extract" in cache[t]}
+    pages: list[dict] = [cache[t] for t in titles if t in fresh]
+    missing = [t for t in titles if t not in fresh]
     if pages:
         print(f"    {len(pages)} from cache, {len(missing)} to fetch", flush=True)
 
-    for i in range(0, len(missing), 50):
-        chunk = missing[i : i + 50]
+    # MediaWiki returns intro extracts for at most 20 titles per request; asking
+    # for more silently drops the extracts from the rest of the batch.
+    for i in range(0, len(missing), 20):
+        chunk = missing[i : i + 20]
         print(f"    details {i + len(chunk)}/{len(missing)}", flush=True)
         try:
             out = _api(
@@ -298,26 +335,25 @@ def keep(page: dict) -> bool:
         return False
     if any(p.search(title) for p in TITLE_PATTERNS):
         return False
+    # "1906 San Francisco earthquake", "Battle of Pell's Point" — an event, not a place.
+    if title[:4].isdigit() or EVENTS_RE.search(title):
+        return False
 
-    # Only the opening sentence describes what the thing *is*; later sentences
-    # mention schools, stations and companies for places that are none of those.
     opening = extract[:220]
-    if EXCLUDE_RE.search(opening):
-        return False
-    if EVENTS_RE.search(opening) or EVENTS_RE.search(title):
-        return False
-    # "1906 San Francisco earthquake", "1964 World's Fair" — a leading year means an event.
-    if title[:4].isdigit():
-        return False
-    if any(d in extract[:160].lower() for d in DEFUNCT):
+    if EVENTS_RE.search(opening):
         return False
 
-    # The article has to say it *is* one of the kinds of thing you can go do,
-    # and not one of the kinds of thing that merely has an address.
+    # A title that names the venue type settles it: the August Wilson African
+    # American Cultural Center is somewhere you go, whoever operates it.
+    named_venue = classify("", title) is not None
     what_it_is = definition(extract)
-    if NOT_A_PLACE_RE.search(what_it_is):
+    if HARD_NOT_A_PLACE_RE.search(what_it_is):
         return False
-    return classify(what_it_is) is not None
+    if not named_venue:
+        if EXCLUDE_RE.search(opening) or NOT_A_PLACE_RE.search(what_it_is):
+            return False
+
+    return named_venue or classify(what_it_is) is not None
 
 
 def first_sentences(extract: str, limit: int = 260) -> str:

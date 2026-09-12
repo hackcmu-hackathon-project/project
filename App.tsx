@@ -10,8 +10,10 @@ import { CityKey } from './src/data';
 import { SavedTrip } from './src/api';
 import { AuthProvider, useAuth } from './src/auth';
 import { StoreProvider, useStore } from './src/store';
+import { AgentChatProvider } from './src/agentChat';
 import { TabBar, TabKey } from './src/components/TabBar';
 import { Feed } from './src/screens/Feed';
+import { Agent } from './src/screens/Agent';
 import { Trips } from './src/screens/Trips';
 import { Trip } from './src/screens/Trip';
 import { Lists } from './src/screens/Lists';
@@ -28,7 +30,7 @@ import { Person } from './src/screens/Person';
 type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number } | { name: 'people' } | { name: 'activity'; owner: string; itemId: number }
   | { name: 'person'; sub: string }
   | { name: 'trips' }
-  | { name: 'trip'; trip: SavedTrip };
+  | { name: 'trip'; trip: SavedTrip; from: 'trips' | 'agent' };
 
 function Shell() {
   const insets = useSafeAreaInsets();
@@ -68,14 +70,15 @@ function Shell() {
       />
     );
   } else if (screen.name === 'trips') {
-    body = <Trips top={top} onClose={() => goTab('list')} onOpen={(trip) => setScreen({ name: 'trip', trip })} />;
+    body = <Trips top={top} onClose={() => goTab('list')} onOpen={(trip) => setScreen({ name: 'trip', trip, from: 'trips' })} />;
   } else if (screen.name === 'trip') {
     body = (
       <Trip
         top={top}
         initial={screen.trip}
-        onClose={() => setScreen({ name: 'trips' })}
-        onSaved={(trip) => setScreen({ name: 'trip', trip })}
+        from={screen.from}
+        onClose={() => setScreen(screen.from === 'agent' ? { name: 'agent' } : { name: 'trips' })}
+        onSaved={(trip) => setScreen({ name: 'trip', trip, from: screen.from })}
       />
     );
   } else if (screen.name === 'list') {
@@ -96,6 +99,14 @@ function Shell() {
   } else if (screen.name === 'people') {
     // Following someone changes the feed, so re-pull on the way out.
     body = <People top={top} onClose={() => { refresh(); goTab('profile'); }} onOpenPerson={openPerson} />;
+  } else if (screen.name === 'agent') {
+    body = (
+      <Agent
+        top={top}
+        onOpenItem={openDetail}
+        onOpenTrip={(trip) => setScreen({ name: 'trip', trip, from: 'agent' })}
+      />
+    );
   } else if (screen.name === 'explore') {
     body = <Explore top={top} onOpen={openDetail} />;
   } else {
@@ -125,7 +136,9 @@ function Gate() {
   if (!user) return <SignIn />;
   return (
     <StoreProvider>
-      <Shell />
+      <AgentChatProvider>
+        <Shell />
+      </AgentChatProvider>
     </StoreProvider>
   );
 }

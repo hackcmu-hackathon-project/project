@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     auth0_client_id: str = ""
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.8-flash"
+    gemini_model: str = "gemini-3.1-flash-lite"
 
     port: int = 8000
     cors_origins: str = "*"

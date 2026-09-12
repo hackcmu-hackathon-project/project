@@ -1,0 +1,70 @@
+# Everything Rove needs, in one command:
+#
+#   docker compose up            → Mongo, the API on :8010, the app on :8081
+#   docker compose run --rm api python fetch_places.py --per-city 100
+#                                → import ~100 real places per city (slow, network)
+#
+# Secrets stay out of the repo: backend/.env.local is read if present.
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: rove-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - rove-mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping")']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    container_name: rove-api
+    command: ['./entrypoint.sh']
+    environment:
+      # Inside the network Mongo is a hostname, not localhost.
+      MONGODB_URI: mongodb://mongo:27017
+      PORT: '8010'
+      ENV: development
+      CORS_ORIGINS: http://localhost:8081,http://localhost:19006,http://localhost:3000
+    env_file:
+      - path: ./backend/.env
+        required: false
+      - path: ./backend/.env.local
+        required: false
+    ports:
+      - '8010:8010'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+
+  web:
+    image: node:22-slim
+    container_name: rove-web
+    working_dir: /app
+    # Install once into a container-local node_modules, then serve Metro.
+    command: >
+      sh -c "npm ci --no-audit --no-fund && npx expo start --web --port 8081"
+    environment:
+      EXPO_PUBLIC_API_URL: http://localhost:8010
+      CI: '1'
+    env_file:
+      - path: ./.env
+        required: false
+    ports:
+      - '8081:8081'
+    depends_on:
+      - api
+    volumes:
+      - .:/app
+      - rove-node-modules:/app/node_modules
+
+volumes:
+  rove-mongo-data:
+  rove-node-modules:
