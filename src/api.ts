@@ -56,6 +56,7 @@ export type Comment = {
 };
 
 export type Activity = {
+  photo_urls?: string[];
   owner_sub: string;
   owner_name: string;
   owner_handle: string;
@@ -87,7 +88,7 @@ export type RankState = {
 };
 
 /** Uploaded photos are served by the API itself, so relative URLs need the host. */
-const absolute = (url: string | null | undefined): string | null =>
+export const absolute = (url: string | null | undefined): string | null =>
   !url ? null : url.startsWith('/') ? `${API_URL}${url}` : url;
 
 export const toItem = (a: ApiItem): Item => ({
@@ -215,6 +216,21 @@ export type SaveTrip = {
 };
 
 export const api = {
+  uploadRankingPhotos: async (token: string | null, itemId: number, files: { uri: string; name: string; type: string }[]): Promise<{ photo_urls: string[] }> => {
+    const body = new FormData();
+    for (const file of files) {
+      if (file.uri.startsWith('data:') || file.uri.startsWith('blob:')) {
+        const blob = await (await fetch(file.uri)).blob();
+        body.append('files', new File([blob], file.name, { type: file.type }));
+      } else body.append('files', file as any);
+    }
+    const res = await fetch(`${API_URL}/api/rankings/${itemId}/photos`, {
+      method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body,
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json();
+  },
+
   trips: (token: string | null): Promise<SavedTrip[]> => call('/api/itineraries', token),
   saveTrip: (token: string | null, id: string, body: SaveTrip): Promise<SavedTrip> =>
     call(`/api/itineraries/${encodeURIComponent(id)}`, token, { method: 'PUT', body: JSON.stringify(body) }),

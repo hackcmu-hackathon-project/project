@@ -2,15 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 import { CATEGORIES, colors, font, radius, scoreColors, fmtScore, TIERS, TIER_ORDER, Tier } from '../theme';
 import { CITIES, CityKey, meta } from '../data';
-import { RankState } from '../api';
+import { RankState, api } from '../api';
+import { useAuth } from '../auth';
 import { CityChips, Eyebrow, Photo, Row, T, Touch } from '../components/ui';
-import { PickedPhoto, pickPhoto } from '../photoPicker';
+import { PickedPhoto, pickPhotos } from '../photoPicker';
 import { useStore } from '../store';
 
 type Step = 'pick' | 'new' | 'tier' | 'compare' | 'done';
 
 export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; onFinish: () => void }) {
-  const { city, setCity, items, wants, rankStart, rankCompare, saveNote, createItem, uploadPhoto } = useStore();
+  const { token } = useAuth();
+  const { city, setCity, items, wants, rankStart, rankCompare, saveNote, createItem, refresh, connection, me } = useStore();
   const [step, setStep] = useState<Step>(seedId ? 'tier' : 'pick');
   const [newId, setNewId] = useState<number | null>(seedId ?? null);
   const [state, setState] = useState<RankState | null>(null);
@@ -27,7 +29,35 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
     bestTime: string;
     city: CityKey;
   }>({ title: '', hood: '', category: 'Outdoors', note: '', tip: '', bestTime: '', city });
-  const [picked, setPicked] = useState<PickedPhoto | null>(null);
+  const [picked, setPicked] = useState<PickedPhoto[]>([]);
+  const [selectedTier, setSelectedTier] = useState<Tier | null>(null);
+  const [uploaded, setUploaded] = useState(false);
+  const photoEditor = (
+    <View style={{ gap: 10, marginBottom: 18 }}>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <T s="med" size={14}>Your moments · {picked.length}/10</T>
+        <Touch disabled={busy || picked.length >= 10} onPress={async () => {
+          try {
+            const photos = await pickPhotos(10 - picked.length);
+            setPicked(previous => [...previous, ...photos].slice(0, 10));
+          } catch { setError('Could not open your photos. Please try again.'); }
+        }}><T c={colors.plum} size={13}>＋ Add photos</T></Touch>
+      </Row>
+      <T s="soft" size={12}>Choose up to 10 photos for your ranking. They’ll appear with your note, not replace the place cover.</T>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <Row style={{ gap: 8 }}>
+          {picked.map((photo, index) => (
+            <View key={`${photo.uri}-${index}`}>
+              <Photo uri={photo.uri} radius={10} style={{ width: 100, height: 100 }} />
+              <Touch disabled={busy} label={`Remove photo ${index + 1}`} onPress={() => setPicked(p => p.filter((_, i) => i !== index))} style={{ paddingVertical: 6 }}>
+                <T s="soft" size={12}>Remove {index + 1}</T>
+              </Touch>
+            </View>
+          ))}
+        </Row>
+      </ScrollView>
+    </View>
+  );
 
   const newItem = items.find((i) => i.id === newId) ?? state?.item ?? null;
   const candidates = useMemo(
@@ -60,7 +90,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
     }
   };
 
-  const chooseTier = (t: Tier) => advance(() => rankStart(newId!, t));
+  const chooseTier = (t: Tier) => { setSelectedTier(t); return advance(() => rankStart(newId!, t)); };
   const compare = (winner: 'new' | 'opponent') => advance(() => rankCompare(state!.sessionId, winner));
 
   // ---------- Pick ----------
@@ -151,32 +181,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           It joins the catalogue for everyone, and we’ll find a photo for it.
         </T>
         <View style={{ paddingHorizontal: 22 }}>
-          <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Photo</Eyebrow>
-          <Touch
-            onPress={async () => setPicked((await pickPhoto()) ?? picked)}
-            label="Choose a photo"
-            style={{ marginBottom: 16, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.line }}
-          >
-            <Photo uri={picked?.uri} label={draft.title || '?'} style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}>
-              {!picked ? (
-                <View style={{ alignItems: 'center' }}>
-                  <T s="med" size={14}>Add a photo</T>
-                  <T s="soft" size={12} style={{ marginTop: 3 }}>Optional — we'll find one if you don't</T>
-                </View>
-              ) : null}
-            </Photo>
-          </Touch>
-          {picked ? (
-            <Row style={{ gap: 14, marginTop: -8, marginBottom: 14 }}>
-              <Touch onPress={async () => setPicked((await pickPhoto()) ?? picked)}>
-                <T s="med" size={13} c={colors.plum}>Choose another</T>
-              </Touch>
-              <Touch onPress={() => setPicked(null)}>
-                <T s="soft" size={13}>Remove</T>
-              </Touch>
-            </Row>
-          ) : null}
-
+          {photoEditor}
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Which city</Eyebrow>
           <View style={{ marginBottom: 16 }}>
             <CityChips city={draft.city} onChange={(c) => setDraft((d) => ({ ...d, city: c }))} />
@@ -221,14 +226,6 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                   tip: draft.tip.trim(),
                   best_time: draft.bestTime.trim(),
                 });
-                if (picked) {
-                  // A failed upload shouldn't lose the place they just added.
-                  try {
-                    await uploadPhoto(created.id, picked);
-                  } catch {
-                    setError('Added, but the photo didn’t upload.');
-                  }
-                }
                 // Rank it in the city it was added to, not the one you were browsing.
                 if (draft.city !== city) setCity(draft.city);
                 setNewId(created.id);
@@ -254,10 +251,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   // ---------- Tier ----------
   if (step === 'tier' && newItem) {
     return (
-      <View style={{ flex: 1, paddingTop: top + 8, paddingBottom: 110 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: top + 8, paddingBottom: 130 }}>
         <T s="soft" size={13} style={{ paddingHorizontal: 22 }}>Ranking</T>
         <T s="serif" size={30} style={{ paddingHorizontal: 22, paddingTop: 2, paddingBottom: 28, lineHeight: 33 }}>{newItem.title}</T>
-        <T s="soft" size={14} style={{ paddingHorizontal: 22, paddingBottom: 12 }}>How was it?</T>
+        <Photo uri={newItem.photo} label={newItem.title} radius={18} style={{ height: 160, marginHorizontal: 22, marginBottom: 16 }} />
+        <T s="serif" size={24} style={{ paddingHorizontal: 22, paddingBottom: 6 }}>{me?.name?.split(' ')[0] ? `${me.name.split(' ')[0]}, how did it feel?` : 'How did it feel to be there?'}</T>
+        <T s="soft" size={13} style={{ paddingHorizontal: 22, paddingBottom: 16 }}>Start with your gut. Then we’ll find its place among your own favorites.</T>
         <View style={{ paddingHorizontal: 22, gap: 10 }}>
           {TIER_ORDER.map((t) => {
             const bg = t === 'loved' ? colors.plum : t === 'liked' ? colors.gold : colors.chip;
@@ -265,20 +264,33 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
             return (
               <Touch
                 key={t}
-                onPress={() => !busy && chooseTier(t)}
-                style={{ padding: 20, borderRadius: radius.xl, backgroundColor: bg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', opacity: busy ? 0.6 : 1 }}
+                onPress={() => !busy && setSelectedTier(t)}
+                accessibilityState={{ selected: selectedTier === t }}
+                style={{ padding: 20, borderRadius: radius.xl, backgroundColor: bg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', opacity: busy ? 0.6 : 1, borderWidth: 3, borderColor: selectedTier === t ? colors.ink : 'transparent' }}
               >
                 <T s="med" size={17} c={fg}>{TIERS[t].label}</T>
-                <T size={13} c={fg} style={{ opacity: 0.75 }}>{TIERS[t].hint}</T>
+                <T size={13} c={fg} style={{ opacity: 0.75 }}>{{ loved: 'I’d tell a friend to go', liked: 'Glad I made the time', okay: 'Not quite my thing' }[t]}</T>
               </Touch>
             );
           })}
+        </View>
+        <View style={{ padding: 22, gap: 12 }}>
+          <T s="med" size={14}>What will you remember?</T>
+          <TextInput value={note} onChangeText={setNote} multiline maxLength={2000}
+            placeholder="The view, who you went with, a moment worth keeping…"
+            placeholderTextColor={colors.faint}
+            style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, minHeight: 90, fontFamily: font.body, color: colors.ink }} />
+          {photoEditor}
+          <Touch disabled={busy || !selectedTier} onPress={() => selectedTier && chooseTier(selectedTier)}
+            style={{ padding: 16, borderRadius: radius.pill, backgroundColor: selectedTier ? colors.ink : colors.chip, alignItems: 'center' }}>
+            <T c={selectedTier ? '#fff' : colors.faint} s="med">{busy ? 'Finding its place…' : 'Find my ranking →'}</T>
+          </Touch>
         </View>
         {error ? <T s="soft" size={12} c={colors.plum} style={{ padding: 22 }}>{error}</T> : null}
         <Touch onPress={onFinish} style={{ marginTop: 'auto', padding: 20, alignItems: 'center' }}>
           <T s="soft" size={14}>Cancel</T>
         </Touch>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -288,10 +300,10 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
     return (
       <View style={{ flex: 1, paddingTop: top + 8, paddingBottom: 100 }}>
         <T s="soft" size={13} style={{ paddingHorizontal: 22 }}>Comparison {state.comparison}</T>
-        <T s="serif" size={30} style={{ paddingHorizontal: 22, paddingTop: 2, paddingBottom: 24 }}>Which was better?</T>
+        <T s="serif" size={30} style={{ paddingHorizontal: 22, paddingTop: 2, paddingBottom: 24 }}>Which would you do again?</T>
         <View style={{ flex: 1, paddingHorizontal: 22, gap: 12, opacity: busy ? 0.55 : 1 }}>
           <Contender photo={newItem.photo ?? newItem.photoThumb} label={newItem.title} onPress={() => !busy && compare('new')}>
-            <Eyebrow style={{ color: colors.plum, fontSize: 11, marginBottom: 6 }}>New</Eyebrow>
+            <Eyebrow style={{ color: colors.plum, fontSize: 11, marginBottom: 6 }}>This experience</Eyebrow>
             <T s="serif" size={22} style={{ lineHeight: 25 }}>{newItem.title}</T>
           </Contender>
           <T s="soft" size={12} style={{ textAlign: 'center', color: colors.faint }}>vs</T>
@@ -303,8 +315,9 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
             <T s="serif" size={22} style={{ lineHeight: 25 }}>{old.title}</T>
           </Contender>
         </View>
-        <Touch onPress={() => !busy && compare(Math.random() < 0.5 ? 'new' : 'opponent')} style={{ padding: 20, alignItems: 'center' }}>
-          <T s="soft" size={14}>Too close to call</T>
+        {error ? <View style={{ paddingHorizontal: 22 }}><T c={colors.plum} size={13}>Couldn’t finish that comparison. Try again or restart.</T><Touch onPress={() => { setStep('tier'); setError(null); }}><T c={colors.plum}>Restart ranking</T></Touch></View> : null}
+        <Touch onPress={() => !busy && compare('opponent')} style={{ padding: 20, alignItems: 'center' }}>
+          <T s="soft" size={14}>Keep my previous favorite ahead</T>
         </Touch>
       </View>
     );
@@ -314,35 +327,50 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   if (step === 'done' && state) {
     const [bg, fg] = scoreColors(state.score);
     return (
-      <View style={{ flex: 1, paddingTop: top + 8, paddingBottom: 110 }}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: top + 20, paddingBottom: 130 }}>
+        <View style={{ paddingVertical: 22, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
           <View style={{ width: 92, height: 92, borderRadius: 46, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', marginBottom: 22 }}>
             <T s="serif" size={40} c={fg}>{fmtScore(state.score)}</T>
           </View>
           <T s="serif" size={30} style={{ textAlign: 'center', lineHeight: 33, marginBottom: 8 }}>{state.item?.title ?? newItem?.title}</T>
-          <T s="soft" size={14}>Now #{state.rank} of {state.total} in {CITIES[city]}</T>
+          <T s="soft" size={14}>Your #{state.rank} of {state.total} in {CITIES[state.item?.city ?? city]}</T>
         </View>
         <View style={{ paddingHorizontal: 22, gap: 10 }}>
+          <T s="soft" size={13}>{connection === 'online' ? 'Your ranking is saved. Add the story and photos your friends will see.' : 'This ranking is only on this device for now. Connect to the API to save notes and photos.'}</T>
+          {!uploaded ? photoEditor : <T s="soft">Photos uploaded.</T>}
           <View style={{ paddingHorizontal: 16, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line }}>
             <TextInput
               value={note}
               onChangeText={setNote}
-              placeholder="Add a note for friends…"
+              placeholder="What made this one yours? Add a note for friends…"
+              multiline maxLength={2000}
               placeholderTextColor={colors.faint}
               style={{ paddingVertical: 14, fontFamily: font.body, fontSize: 14, color: colors.ink, outlineStyle: 'none' } as any}
             />
           </View>
           <Touch
-            onPress={async () => { await saveNote(state.item?.id ?? newId!, note); onFinish(); }}
+            disabled={busy || connection !== 'online'}
+            onPress={async () => {
+              if (busy) return;
+              setBusy(true); setError(null);
+              try {
+                const id = state.item?.id ?? newId!;
+                if (picked.length && !uploaded) { await api.uploadRankingPhotos(token, id, picked); setUploaded(true); }
+                await api.setNote(token, id, note.trim());
+                await refresh(); onFinish();
+              } catch (e: any) { setError(`Your ranking is saved, but your extras couldn't finish. Your selections are still here. ${String(e?.message ?? '')}`); }
+              finally { setBusy(false); }
+            }}
             style={{ padding: 16, borderRadius: radius.lg, backgroundColor: colors.ink, alignItems: 'center' }}
           >
-            <T s="med" size={15} c="#fff">Post to feed</T>
+            <T s="med" size={15} c="#fff">{busy ? 'Saving your memories…' : 'Save note & photos'}</T>
           </Touch>
-          <Touch onPress={onFinish} style={{ padding: 12, alignItems: 'center' }}>
-            <T s="soft" size={14}>Keep private</T>
+          {error ? <T c={colors.plum} size={12}>{error}</T> : null}
+          <Touch disabled={busy} onPress={onFinish} style={{ padding: 12, alignItems: 'center' }}>
+            <T s="soft" size={14}>Done without extras</T>
           </Touch>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
