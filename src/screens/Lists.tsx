@@ -6,7 +6,7 @@ import { CityChips, Eyebrow, Photo, Row, ScoreDot, T, Touch } from '../component
 import { useStore } from '../store';
 import { OfflineBanner } from '../components/Offline';
 
-export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: number) => void; onRank: (id: number) => void }) {
+export function Lists({ top, onOpen, onRank, onPlan }: { onPlan: () => void; top: number; onOpen: (id: number) => void; onRank: (id: number) => void }) {
   const { city, setCity, ranked, saves, connection, refresh } = useStore();
   const list = ranked(city);
   const want = saves.filter((s) => s.city === city);
@@ -33,6 +33,10 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
         <CityChips city={city} onChange={setCity} />
       </View>
 
+      <Touch onPress={onPlan} style={{ marginHorizontal: 22, marginBottom: 20, padding: 18, borderRadius: 16, backgroundColor: colors.plum }}>
+        <T s="med" size={17} c="#fff">Plan a trip →</T>
+        <T size={13} c="#fff" style={{ marginTop: 4 }}>Your must-tries. Your friends’ picks. A daily route.</T>
+      </Touch>
       <OfflineBanner connection={connection} onRetry={refresh} />
 
       {list.map((r, i) => (

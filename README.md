@@ -52,6 +52,7 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 
 | route | what it does |
 | --- | --- |
+| `POST /api/itineraries/generate` | dates, city, must-tries and pace → personalized daily routes |
 | `GET /api/items?city=&category=&q=` | the catalogue |
 | `POST /api/items` | add a place (sf/nyc only); a photo is resolved for it on the way in |
 | `GET /api/categories` | the fixed category list with counts |
@@ -99,6 +100,25 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 
 Your taste tags on the profile are computed from what you've actually ranked, not
 stored anywhere.
+
+## Plan a trip
+
+Open **Lists → Plan a trip**, choose a city and an inclusive date range (up to 14
+days), then select 1–5 stops per day and walking, driving or cycling. Search the
+catalogue to mark must-tries. The planner prioritizes those, then want-to-go saves,
+then places rated at least 5 by people you follow. Previously ranked places are
+excluded unless explicitly selected. Each stop explains why it was chosen.
+
+Days group stops by neighborhood and open in Google Maps with the same stop order
+(up to three intermediate waypoints, including on mobile browsers). One-stop days
+open directions from your current location. No Maps API key is needed. Places are
+matched by name, neighborhood and city; confirm the match in Maps. This is a
+neighborhood grouping heuristic, not a shortest-path optimizer. Durations cover
+activities only; opening hours, availability and travel times are not verified.
+Plans are generated on demand and are not saved after leaving the planner.
+If picks do not fit, the planner reports overflow, including omitted must-tries.
+
+Run planner tests with `cd backend && .venv/bin/python -m unittest test_itinerary -v`.
 
 ## Reactions, comments and saves
 

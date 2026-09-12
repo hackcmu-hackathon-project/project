@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import people, photos, ranking, social
+from . import itinerary, people, photos, ranking, social
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -589,3 +589,25 @@ async def feed(
             )
 
     return entries[:limit]
+
+
+@router.post("/itineraries/generate")
+async def generate_itinerary(
+    body: itinerary.ItineraryRequest,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    items = await db.items.find({"city": body.city}, {"_id": 0}).to_list(None)
+    saved = await db.saves.find({"sub": user.sub}).to_list(None)
+    visited = await db.rankings.find({"sub": user.sub}).to_list(None)
+    subs = await people.following_subs(db, user.sub)
+    recommendations = await db.rankings.find({"sub": {"$in": subs}, "score": {"$gte": 5}}).to_list(None)
+    users = await db.users.find({"_id": {"$in": subs}}).to_list(None)
+    names = {u["_id"]: u.get("name", "A friend") for u in users}
+    try:
+        return itinerary.build_itinerary(
+            body, items, {s["item_id"] for s in saved}, {r["item_id"] for r in visited},
+            [{**r, "name": names.get(r["sub"], "A friend")} for r in recommendations],
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
