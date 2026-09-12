@@ -216,6 +216,8 @@ export type SaveTrip = {
 
 export const api = {
   trips: (token: string | null): Promise<SavedTrip[]> => call('/api/itineraries', token),
+  deleteTrip: (token: string | null, id: string) =>
+    call(`/api/itineraries/${encodeURIComponent(id)}`, token, { method: 'DELETE' }),
   saveTrip: (token: string | null, id: string, body: SaveTrip): Promise<SavedTrip> =>
     call(`/api/itineraries/${encodeURIComponent(id)}`, token, { method: 'PUT', body: JSON.stringify(body) }),
   itinerary: (token: string | null, body: ItineraryRequest): Promise<ItineraryResult> =>

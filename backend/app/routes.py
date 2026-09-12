@@ -756,6 +756,16 @@ async def save_itinerary(
     return {k: v for k, v in doc.items() if k != 'owner'}
 
 
+@router.delete('/itineraries/{trip_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_itinerary(
+    trip_id: str,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Delete one of your own trips. Deleting something already gone is fine."""
+    await db.itineraries.delete_one({'_id': trip_id, 'owner': user.sub})
+
+
 @router.post('/itineraries/verify')
 async def verify_itinerary(
     body: itinerary.SaveItinerary,
