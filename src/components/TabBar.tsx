@@ -4,19 +4,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius, shadow } from '../theme';
 import { Row, T, Touch } from './ui';
 
-export type TabKey = 'feed' | 'list' | 'explore' | 'profile';
+export type TabKey = 'feed' | 'list' | 'agent' | 'explore' | 'profile';
 
 export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: TabKey) => void; onAdd: () => void; bottom: number }) {
-  const item = (key: TabKey, label: string) => {
+  const item = (key: TabKey, label: string, accent = false) => {
     const on = tab === key;
+    const background = on ? (accent ? colors.plum : colors.ink) : 'transparent';
     return (
       <Touch
         key={key}
         onPress={() => onTab(key)}
         label={label}
-        style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: on ? colors.ink : 'transparent' }}
+        style={{ paddingHorizontal: 11, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: background }}
       >
-        <T s="med" size={13} c={on ? '#fff' : colors.muted}>{label}</T>
+        <T s="med" size={12.5} c={on ? '#fff' : accent ? colors.plum : colors.muted}>{label}</T>
       </Touch>
     );
   };
@@ -30,7 +31,7 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
       <Row
         style={{
           justifyContent: 'space-between',
-          paddingHorizontal: 8,
+          paddingHorizontal: 6,
           paddingVertical: 6,
           borderRadius: radius.pill,
           backgroundColor: colors.surface,
@@ -48,6 +49,7 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
         >
           <T size={24} c="#fff" style={{ lineHeight: 27 }}>＋</T>
         </Touch>
+        {item('agent', 'Ask', true)}
         {item('explore', 'Explore')}
         {item('profile', 'You')}
       </Row>

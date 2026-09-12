@@ -161,6 +161,16 @@ export type MyActivity = {
   when: string;
 };
 
+export type AgentTurn = { role: 'user' | 'model'; text: string };
+
+export type AgentReply = {
+  reply: string;
+  places: ApiItem[];
+  trip: SavedTrip | null;
+  used: string[];
+  saved_ids?: number[];
+};
+
 export type Person = {
   sub: string;
   name: string;
@@ -215,6 +225,8 @@ export type SaveTrip = {
 };
 
 export const api = {
+  agent: (token: string | null, messages: AgentTurn[], city: string): Promise<AgentReply> =>
+    call('/api/agent/chat', token, { method: 'POST', body: JSON.stringify({ messages, city }) }),
   trips: (token: string | null): Promise<SavedTrip[]> => call('/api/itineraries', token),
   deleteTrip: (token: string | null, id: string) =>
     call(`/api/itineraries/${encodeURIComponent(id)}`, token, { method: 'DELETE' }),
