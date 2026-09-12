@@ -16,23 +16,27 @@ end to end — the API's `City` type is `"sf" | "nyc"`, so nothing else can be c
 
 ## Run it
 
-Three processes. Mongo and the API first, then the app.
+One command brings up all three pieces — Mongo, the API on :8010, the app on :8081 —
+and seeds an empty database on the way:
 
 ```bash
-# 1. MongoDB
-cd backend && docker compose up -d
+docker compose up
+```
 
-# 2. API  (http://localhost:8010, docs at /docs)
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env
-.venv/bin/python seed.py --demo-people --dev-user --reset
-.venv/bin/python fetch_places.py --per-city 100   # ~100 real places per city
-.venv/bin/uvicorn app.main:app --port 8010 --reload
+Then, once, for the full catalogue (it pulls ~100 real places per city from
+Wikipedia and takes a few minutes):
 
-# 3. App
-cd .. && npm install
-cp .env.example .env
-npm run web        # a phone frame appears on wide screens
+```bash
+docker compose run --rm api python fetch_places.py --per-city 100
+```
+
+Prefer to run it natively? `npm run dev` does the same three things with Mongo in
+Docker and the API and Metro on your machine:
+
+```bash
+python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt
+npm install
+npm run dev
 ```
 
 Auth0 is optional in development. With `AUTH0_DOMAIN` unset the API runs **open** and

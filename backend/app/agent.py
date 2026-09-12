@@ -19,11 +19,12 @@ from . import itinerary, people, social
 from .config import get_settings
 from .models import CATEGORIES, City
 
-MAX_TURNS = 6
+#: Each turn is one request against a per-minute quota, so the prompt pushes the
+#: model to gather everything it needs in one round: tools, then answer.
+MAX_TURNS = 3
 MAX_RESULTS = 12
-#: Flash models are busy; a couple of quick retries turns most 503s into answers.
 RETRY_STATUS = {429, 500, 502, 503, 504}
-RETRY_DELAYS = (0.8, 2.0, 4.0)
+RETRY_DELAYS = (1.0, 3.0)
 
 
 async def _call(client: httpx.AsyncClient, url: str, key: str, payload: dict) -> httpx.Response:
@@ -38,6 +39,8 @@ async def _call(client: httpx.AsyncClient, url: str, key: str, payload: dict) ->
 SYSTEM = """You are Rove's planning assistant. Rove ranks *things to do* in San Francisco and New York — never restaurants or bars.
 
 Use the tools before answering anything factual about places, the person's lists, or their friends. Never invent a place, a score or an id: every place you mention must have come from a tool result in this conversation, and you refer to places by their exact catalogue title.
+
+Request every tool you need in a single turn — they run in parallel — and answer from those results. Do not call a tool twice with the same arguments, and do not go looking for more once you have enough to answer.
 
 Be concrete and brief. Two or three sentences, or a short list. No preamble, no "as an AI". Say what you'd actually do and why it suits them, using their own rankings, saved places and the people they follow as evidence.
 
@@ -144,6 +147,16 @@ class Tools:
         self.seen: dict[int, dict] = {}
         self.trip: dict | None = None
         self.saved_ids: list[int] = []
+
+    def mentioned(self, reply: str) -> list[dict]:
+        """The places the answer actually named — cards for everything a tool
+        happened to return would drown two recommendations in ten."""
+        lowered = reply.lower()
+        named = [doc for doc in self.seen.values() if doc["title"].lower() in lowered]
+        if named:
+            return named
+        # Nothing matched by name (it summarised, or saved something): show what it acted on.
+        return [self.seen[i] for i in self.saved_ids if i in self.seen][:6]
 
     def _remember(self, docs: list[dict]) -> list[dict]:
         for d in docs:
@@ -319,9 +332,10 @@ async def run(db: AsyncIOMotorDatabase, sub: str, body: ChatRequest) -> dict:
             text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
 
             if not calls:
+                answer = text.strip() or "I'm not sure how to help with that one."
                 return {
-                    "reply": text.strip() or "I'm not sure how to help with that one.",
-                    "places": [tools.seen[i] for i in tools.seen],
+                    "reply": answer,
+                    "places": tools.mentioned(answer),
                     "trip": tools.trip,
                     "used": used,
                     "saved_ids": tools.saved_ids,
@@ -346,7 +360,7 @@ async def run(db: AsyncIOMotorDatabase, sub: str, body: ChatRequest) -> dict:
 
     return {
         "reply": "That took more steps than I can do at once. Try asking for one thing at a time.",
-        "places": [tools.seen[i] for i in tools.seen],
+        "places": [],
         "trip": tools.trip,
         "used": used,
     }
