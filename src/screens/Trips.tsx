@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { api, ItineraryRequest, SavedTrip } from '../api';
 import { useAuth } from '../auth';
@@ -22,11 +23,56 @@ const field = {
 } as any;
 
 const today = () => new Date().toISOString().slice(0, 10);
+/** A trip is over once its last day has passed. */
+const isPast = (trip: SavedTrip) => trip.days[trip.days.length - 1].date < today();
 const validDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 const pretty = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 /** Planning page: the trips you've saved, and the form that makes a new one. */
+/** A saved trip, with a quiet way to throw it away. */
+function TripRow({
+  trip,
+  past,
+  onOpen,
+  onDelete,
+}: {
+  trip: SavedTrip;
+  past: boolean;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const span =
+    `${CITIES[trip.city]} · ${pretty(trip.days[0].date)}` +
+    (trip.days.length > 1 ? ` – ${pretty(trip.days[trip.days.length - 1].date)}` : '') +
+    ` · ${trip.days.reduce((n, d) => n + d.stops.length, 0)} stops`;
+
+  return (
+    <Row
+      style={{
+        paddingLeft: 16,
+        paddingRight: 8,
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.line,
+        opacity: past ? 0.55 : 1,
+      }}
+    >
+      <Touch onPress={onOpen} style={{ flex: 1, paddingVertical: 16 }}>
+        <T s="med" size={15}>{trip.title}</T>
+        <T s="soft" size={12.5} style={{ marginTop: 3 }}>{span}</T>
+      </Touch>
+      <Touch onPress={onDelete} label={`Delete ${trip.title}`} style={{ padding: 10 }}>
+        <Ionicons name="trash-outline" size={17} color={colors.faint} />
+      </Touch>
+      <Touch onPress={onOpen} style={{ paddingVertical: 16, paddingLeft: 4, paddingRight: 6 }}>
+        <T c={colors.faint} size={16}>›</T>
+      </Touch>
+    </Row>
+  );
+}
+
 export function Trips({
   top,
   onClose,
@@ -47,11 +93,27 @@ export function Trips({
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showPast, setShowPast] = useState(false);
 
   const load = useCallback(() => {
     api.trips(token).then(setTrips).catch(() => setTrips([]));
   }, [token]);
   useEffect(load, [load]);
+
+  const remove = async (trip: SavedTrip) => {
+    const before = trips;
+    setTrips((prev) => prev.filter((t) => t.id !== trip.id));
+    try {
+      await api.deleteTrip(token, trip.id);
+    } catch {
+      setTrips(before);
+      setError('Could not delete that trip.');
+    }
+  };
+
+  const upcoming = trips.filter((t) => !isPast(t));
+  const past = trips.filter(isPast);
+  const shown = showPast ? [...upcoming, ...past] : upcoming;
 
   const options = items.filter(
     (i) =>
@@ -107,37 +169,23 @@ export function Trips({
       </Touch>
       <T s="serif" size={36} style={{ paddingHorizontal: 22 }}>Trips</T>
 
-      {trips.length ? (
+      {shown.length ? (
         <>
           <Eyebrow style={{ paddingHorizontal: 22, paddingTop: 22, paddingBottom: 8 }}>Saved</Eyebrow>
           <View style={{ paddingHorizontal: 22, gap: 10 }}>
-            {trips.map((t) => (
-              <Touch
-                key={t.id}
-                onPress={() => onOpen(t)}
-                style={{
-                  padding: 16,
-                  borderRadius: radius.lg,
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <T s="med" size={15}>{t.title}</T>
-                  <T s="soft" size={12.5} style={{ marginTop: 3 }}>
-                    {CITIES[t.city]} · {pretty(t.days[0].date)}
-                    {t.days.length > 1 ? ` – ${pretty(t.days[t.days.length - 1].date)}` : ''} ·{' '}
-                    {t.days.reduce((n, d) => n + d.stops.length, 0)} stops
-                  </T>
-                </View>
-                <T c={colors.faint} size={16}>›</T>
-              </Touch>
+            {shown.map((t) => (
+              <TripRow key={t.id} trip={t} onOpen={() => onOpen(t)} onDelete={() => remove(t)} past={isPast(t)} />
             ))}
           </View>
         </>
+      ) : null}
+
+      {past.length ? (
+        <Touch onPress={() => setShowPast((v) => !v)} style={{ paddingHorizontal: 22, paddingTop: 12 }}>
+          <T s="med" size={13} c={colors.plum}>
+            {showPast ? 'Hide past trips' : `Show ${past.length} past trip${past.length > 1 ? 's' : ''}`}
+          </T>
+        </Touch>
       ) : null}
 
       <Eyebrow style={{ paddingHorizontal: 22, paddingTop: 28, paddingBottom: 12 }}>New trip</Eyebrow>

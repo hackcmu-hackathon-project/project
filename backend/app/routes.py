@@ -3,11 +3,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import ranking_photos, gemini_planner, itinerary, people, photos, ranking, social, uploads
+from . import agent, ranking_photos, gemini_planner, itinerary, people, photos, ranking, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
     CATEGORIES,
+    CITY_NAMES,
     Activity,
     City,
     Comment,
@@ -29,7 +30,7 @@ from .models import (
 router = APIRouter(prefix="/api")
 router.include_router(ranking_photos.router)
 
-CITIES = {"sf": "San Francisco", "nyc": "New York"}
+CITIES = CITY_NAMES
 
 
 def _now() -> datetime:
@@ -697,6 +698,21 @@ async def feed(
     return entries[:limit]
 
 
+@router.post("/agent/chat")
+async def agent_chat(
+    body: agent.ChatRequest,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Ask the assistant. Its tools act as you, against your own data."""
+    await _touch_user(db, user)
+    result = await agent.run(db, user.sub, body)
+    return {
+        **result,
+        "places": [Item(**p) for p in result.get("places", [])],
+    }
+
+
 @router.post("/itineraries/generate")
 async def generate_itinerary(
     body: itinerary.ItineraryRequest,
@@ -756,6 +772,16 @@ async def save_itinerary(
         if not result.matched_count:
             raise HTTPException(409, 'Trip changed or is unavailable. Reopen it before saving.')
     return {k: v for k, v in doc.items() if k != 'owner'}
+
+
+@router.delete('/itineraries/{trip_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_itinerary(
+    trip_id: str,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Delete one of your own trips. Deleting something already gone is fine."""
+    await db.itineraries.delete_one({'_id': trip_id, 'owner': user.sub})
 
 
 @router.post('/itineraries/verify')

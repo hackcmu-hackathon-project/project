@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { colors, font, radius } from '../theme';
-import { CityKey } from '../data';
+import { CITIES, CITY_KEYS, CityKey } from '../data';
 import { Me, MyActivity, Person, api } from '../api';
 import { Eyebrow, Initials, Row, T, Touch } from '../components/ui';
 import { useStore } from '../store';
@@ -90,9 +90,9 @@ export function Profile({
     }
   };
 
-  const sf = ranked('sf');
-  const nyc = ranked('nyc');
-  const myTaste = taste([...sf, ...nyc]);
+  const byCity = CITY_KEYS.map((key) => ({ key, name: CITIES[key], list: ranked(key) }));
+  const myTaste = taste(byCity.flatMap((c) => c.list));
+  const totalRanked = byCity.reduce((n, c) => n + c.list.length, 0);
   const name = me?.name ?? user?.name ?? 'Traveler';
 
   return (
@@ -146,7 +146,7 @@ export function Profile({
 
       <Row style={{ justifyContent: 'center', gap: 36, paddingBottom: 26 }}>
         {[
-          [String(sf.length + nyc.length), 'Ranked'],
+          [String(totalRanked), 'Ranked'],
           [String(me?.following ?? following.length), 'Following'],
           [String(me?.followers ?? 0), 'Followers'],
         ].map(([n, l]) => (
@@ -159,10 +159,10 @@ export function Profile({
 
       <Eyebrow style={{ paddingHorizontal: 22, paddingBottom: 10 }}>Your cities</Eyebrow>
       <View style={{ paddingHorizontal: 22, gap: 10 }}>
-        {([['sf', 'San Francisco', sf], ['nyc', 'New York', nyc]] as const).map(([key, label, list]) => (
+        {byCity.map(({ key, name: label, list }) => (
           <Touch
             key={key}
-            onPress={() => onOpenCity(key as CityKey)}
+            onPress={() => onOpenCity(key)}
             style={{ padding: 18, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
           >
             <View style={{ flex: 1 }}>
