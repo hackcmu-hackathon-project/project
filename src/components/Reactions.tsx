@@ -25,6 +25,7 @@ export function ReactionBar({
           <Touch
             key={e}
             onPress={() => onPick(e)}
+            label={`React ${e}${n ? `, ${n} so far` : ''}`}
             style={{
               flexDirection: 'row',
               alignItems: 'center',

@@ -171,9 +171,16 @@ export function PrimaryButton({ label, onPress, style, tone = 'ink' }: any) {
   );
 }
 
-export function Touch({ children, onPress, style }: any) {
+export function Touch({ children, onPress, style, label, disabled }: any) {
   return (
-    <Pressable onPress={() => { tap(); onPress?.(); }} style={({ pressed }) => [style, { opacity: pressed ? 0.65 : 1 }]}>
+    <Pressable
+      onPress={() => { tap(); onPress?.(); }}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      style={({ pressed }) => [style, { opacity: pressed ? 0.65 : disabled ? 0.5 : 1 }]}
+    >
       {children}
     </Pressable>
   );

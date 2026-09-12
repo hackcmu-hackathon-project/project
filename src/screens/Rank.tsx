@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 import { CATEGORIES, colors, font, radius, scoreColors, fmtScore, TIERS, TIER_ORDER, Tier } from '../theme';
 import { CITIES, CityKey, meta } from '../data';
 import { RankState } from '../api';
-import { CityChips, Eyebrow, Hatch, Photo, Row, T, Touch } from '../components/ui';
+import { CityChips, Eyebrow, Photo, Row, T, Touch } from '../components/ui';
 import { useStore } from '../store';
 
 type Step = 'pick' | 'new' | 'tier' | 'compare' | 'done';
@@ -17,13 +17,15 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [q, setQ] = useState('');
-  const [draft, setDraft] = useState<{ title: string; hood: string; category: string; note: string; city: CityKey }>({
-    title: '',
-    hood: '',
-    category: 'Outdoors',
-    note: '',
-    city,
-  });
+  const [draft, setDraft] = useState<{
+    title: string;
+    hood: string;
+    category: string;
+    note: string;
+    tip: string;
+    bestTime: string;
+    city: CityKey;
+  }>({ title: '', hood: '', category: 'Outdoors', note: '', tip: '', bestTime: '', city });
 
   const newItem = items.find((i) => i.id === newId) ?? state?.item ?? null;
   const candidates = useMemo(
@@ -119,7 +121,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   // ---------- Add a place ----------
   if (step === 'new') {
     const ready = draft.title.trim().length > 2 && draft.hood.trim().length > 1;
-    const field = (label: string, key: 'title' | 'hood' | 'note', placeholder: string, multiline = false) => (
+    const field = (
+      label: string,
+      key: 'title' | 'hood' | 'note' | 'tip' | 'bestTime',
+      placeholder: string,
+      multiline = false
+    ) => (
       <View key={key} style={{ marginBottom: 14 }}>
         <Eyebrow style={{ fontSize: 11, marginBottom: 6 }}>{label}</Eyebrow>
         <View style={{ paddingHorizontal: 16, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line }}>
@@ -168,6 +175,8 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
             ))}
           </Row>
           {field('Why it’s worth doing', 'note', 'One or two lines for whoever finds it next.', true)}
+          {field('The move (optional)', 'tip', 'The thing you’d tell a friend before they go.')}
+          {field('Best time (optional)', 'bestTime', 'Weekday mornings')}
           {error ? <T s="soft" size={12.5} c={colors.plum} style={{ marginBottom: 10 }}>{error}</T> : null}
           <Touch
             onPress={async () => {
@@ -181,6 +190,8 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                   hood: draft.hood.trim(),
                   category: draft.category,
                   note: draft.note.trim(),
+                  tip: draft.tip.trim(),
+                  best_time: draft.bestTime.trim(),
                 });
                 // Rank it in the city it was added to, not the one you were browsing.
                 if (draft.city !== city) setCity(draft.city);
@@ -243,12 +254,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
         <T s="soft" size={13} style={{ paddingHorizontal: 22 }}>Comparison {state.comparison}</T>
         <T s="serif" size={30} style={{ paddingHorizontal: 22, paddingTop: 2, paddingBottom: 24 }}>Which was better?</T>
         <View style={{ flex: 1, paddingHorizontal: 22, gap: 12, opacity: busy ? 0.55 : 1 }}>
-          <Contender onPress={() => !busy && compare('new')}>
+          <Contender photo={newItem.photo ?? newItem.photoThumb} onPress={() => !busy && compare('new')}>
             <Eyebrow style={{ color: colors.plum, fontSize: 11, marginBottom: 6 }}>New</Eyebrow>
             <T s="serif" size={22} style={{ lineHeight: 25 }}>{newItem.title}</T>
           </Contender>
           <T s="soft" size={12} style={{ textAlign: 'center', color: colors.faint }}>vs</T>
-          <Contender onPress={() => !busy && compare('opponent')}>
+          <Contender photo={old.photo ?? old.photoThumb} onPress={() => !busy && compare('opponent')}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 6 }}>
               <Eyebrow style={{ color: colors.soft, fontSize: 11 }}>Ranked #{state.opponentRank ?? '–'}</Eyebrow>
               <T s="semi" size={13}>{fmtScore(state.opponentScore)}</T>
@@ -306,12 +317,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   );
 }
 
-function Contender({ children, onPress }: any) {
+function Contender({ children, onPress, photo }: any) {
   return (
-    <Touch onPress={onPress} style={{ flex: 1, minHeight: 170 }}>
-      <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, padding: 18, justifyContent: 'flex-end', overflow: 'hidden' }}>
-        <Hatch style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%' }} />
-        <View>{children}</View>
+    <Touch onPress={onPress} style={{ flex: 1, minHeight: 190 }}>
+      <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' }}>
+        <Photo uri={photo} style={{ flex: 1, minHeight: 110 }} />
+        <View style={{ padding: 16 }}>{children}</View>
       </View>
     </Touch>
   );

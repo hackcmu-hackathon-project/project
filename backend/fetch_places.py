@@ -7,7 +7,10 @@ coordinates around each city, filtered down to places you'd actually go do,
 ranked by how many language editions carry the article. Photos come from the
 article's lead image, so imported places arrive with a picture already.
 
-Imported ids start at 1000; the hand-written seed keeps 1-99.
+Ids are derived from the Wikipedia page id (`1_000_000 + pageid`) so they are
+stable across runs: re-importing can never hand an id that someone has already
+ranked to a different place. The hand-written seed keeps 1-99, and places added
+in the app take ids from 100 up.
 """
 
 import asyncio
@@ -28,7 +31,9 @@ from places_source import (
 )
 
 CITY_NAME = {"sf": "San Francisco", "nyc": "New York"}
-FIRST_IMPORTED_ID = 1000
+
+#: Imported ids live above this line, derived from the Wikipedia page id.
+IMPORTED_ID_BASE = 1_000_000
 
 
 def collect(city: str, per_city: int) -> list[dict]:
@@ -61,6 +66,7 @@ def collect(city: str, per_city: int) -> list[dict]:
         thumb = (page.get("thumbnail") or {}).get("source")
         out.append(
             {
+                "id": IMPORTED_ID_BASE + int(page["pageid"]),
                 "city": city,
                 "title": page["title"].split(" (")[0],
                 "hood": nearest(city, lat, lon),
@@ -75,6 +81,7 @@ def collect(city: str, per_city: int) -> list[dict]:
                 "lat": lat,
                 "lon": lon,
                 "source": "wikipedia",
+                "wikipedia_pageid": page.get("pageid"),
                 "wikipedia_url": page.get("fullurl"),
                 "langs": len(page.get("langlinks", [])),
                 "photo_url": (page.get("original") or {}).get("source") or thumb,
@@ -95,22 +102,12 @@ async def main(per_city: int, replace: bool) -> None:
         removed = await db.items.delete_many({"source": "wikipedia"})
         print(f"removed {removed.deleted_count} previously imported places")
 
-    next_id = FIRST_IMPORTED_ID
-    last = await db.items.find_one({"id": {"$gte": FIRST_IMPORTED_ID}}, sort=[("id", -1)], projection={"id": 1})
-    if last:
-        next_id = last["id"] + 1
-
     total = 0
     for city in ("sf", "nyc"):
         print(f"{CITY_NAME[city]}:")
         for place in collect(city, per_city):
-            existing = await db.items.find_one({"title": place["title"], "city": city}, {"id": 1})
-            if existing:
-                await db.items.update_one({"id": existing["id"]}, {"$set": place})
-                continue
-            await db.items.insert_one({**place, "id": next_id})
-            next_id += 1
-            total += 1
+            result = await db.items.update_one({"id": place["id"]}, {"$set": place}, upsert=True)
+            total += 1 if result.upserted_id is not None else 0
         print(f"  {CITY_NAME[city]}: catalogue now {await db.items.count_documents({'city': city})}")
 
     print(f"{total} new places")

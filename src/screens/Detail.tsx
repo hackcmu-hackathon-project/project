@@ -128,12 +128,14 @@ export function Detail({
         <Touch onPress={() => onRank(item.id)} style={{ flex: 1, padding: 16, borderRadius: radius.lg, backgroundColor: colors.ink, alignItems: 'center' }}>
           <T s="med" size={15} c="#fff">{item.score == null ? 'I’ve been' : 'Re-rank mine'}</T>
         </Touch>
-        <Touch
-          onPress={() => toggleSave(item.id)}
-          style={{ flex: 1, padding: 16, borderRadius: radius.lg, backgroundColor: saved ? colors.sunken : colors.surface, borderWidth: 1, borderColor: '#d5cfc7', alignItems: 'center' }}
-        >
-          <T s="med" size={15}>{saved ? '✓ On your list' : 'Want to go'}</T>
-        </Touch>
+        {item.score == null ? (
+          <Touch
+            onPress={() => toggleSave(item.id)}
+            style={{ flex: 1, padding: 16, borderRadius: radius.lg, backgroundColor: saved ? colors.sunken : colors.surface, borderWidth: 1, borderColor: '#d5cfc7', alignItems: 'center' }}
+          >
+            <T s="med" size={15}>{saved ? '✓ Want to go' : 'Want to go'}</T>
+          </Touch>
+        ) : null}
       </Row>
 
       {item.score != null && me ? (

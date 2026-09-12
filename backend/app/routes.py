@@ -285,10 +285,12 @@ async def create_item(
     user: Principal = Depends(current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
-    last = await db.items.find_one(sort=[("id", -1)], projection={"id": 1})
+    # Ids 1-99 are the hand-written seed and 1,000,000+ are Wikipedia imports,
+    # so places added in the app take the next free id from 100 up.
+    last = await db.items.find_one({"id": {"$lt": 1_000_000}}, sort=[("id", -1)], projection={"id": 1})
     doc = {
         **body.model_dump(),
-        "id": (last["id"] if last else 0) + 1,
+        "id": max(99, last["id"] if last else 99) + 1,
         "img": "photo",
         "created_by": user.sub,
         "created_at": _now(),
@@ -395,7 +397,10 @@ async def save_item(
     user: Principal = Depends(current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
+    """Add to want-to-go. You can't want to go somewhere you've already ranked."""
     await ranking.item_or_404(db, item_id)
+    if await db.rankings.find_one({"sub": user.sub, "item_id": item_id}, {"_id": 1}):
+        raise HTTPException(status.HTTP_409_CONFLICT, "You've already ranked this")
     await social.save(db, user.sub, item_id)
 
 

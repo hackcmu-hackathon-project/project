@@ -50,9 +50,9 @@ async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
         doc = {k: v for k, v in item.items() if not k.startswith("seed_")}
         await db.items.update_one({"id": item["id"]}, {"$set": doc}, upsert=True)
 
-    # Anything below the imported-id range that is no longer in the file has
-    # been retired from the catalogue.
-    stale = await db.items.delete_many({"id": {"$lt": 1000, "$nin": curated_ids}})
+    # Anything in the curated id range that is no longer in the file has been
+    # retired from the catalogue.
+    stale = await db.items.delete_many({"id": {"$lt": 100, "$nin": curated_ids}})
     if stale.deleted_count:
         print(f"retired {stale.deleted_count} curated items no longer in seed_data.json")
     print(f"items: {await db.items.count_documents({})} ({len(curated_ids)} curated)")
