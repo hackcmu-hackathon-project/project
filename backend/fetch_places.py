@@ -1,6 +1,6 @@
 """Populate the catalogue with ~100 well-known things to do per city.
 
-    python fetch_places.py [--per-city 100] [--replace]
+    python fetch_places.py [--per-city 100] [--city sf,nyc] [--replace]
 
 Source is Wikipedia (see places_source.py): geosearch for articles with
 coordinates around each city, filtered down to places you'd actually go do,
@@ -101,18 +101,27 @@ def collect(city: str, per_city: int) -> list[dict]:
     return out
 
 
-async def main(per_city: int, replace: bool) -> None:
+async def main(per_city: int, replace: bool, only: list[str] | None = None) -> None:
     db = get_db()
     await ensure_indexes()
 
     if replace:
-        removed = await db.items.delete_many({"source": "wikipedia"})
+        scope = {"source": "wikipedia"}
+        if only:
+            scope["city"] = {"$in": only}
+        removed = await db.items.delete_many(scope)
         print(f"removed {removed.deleted_count} previously imported places")
 
     total = 0
-    for city in CITY_NAME:
+    for city in (only or list(CITY_NAME)):
         print(f"{CITY_NAME[city]}:")
         for place in collect(city, per_city):
+            # An article with no lead image must not erase a photo that the
+            # Openverse backfill already found for this place.
+            if not place.get("photo_url"):
+                for key in ("photo_url", "photo_thumb", "photo_credit", "photo_license",
+                            "photo_provider", "photo_source_url"):
+                    place.pop(key, None)
             result = await db.items.update_one({"id": place["id"]}, {"$set": place}, upsert=True)
             total += 1 if result.upserted_id is not None else 0
         print(f"  {CITY_NAME[city]}: catalogue now {await db.items.count_documents({'city': city})}")
@@ -125,4 +134,7 @@ if __name__ == "__main__":
     per = 100
     if "--per-city" in sys.argv:
         per = int(sys.argv[sys.argv.index("--per-city") + 1])
-    asyncio.run(main(per, "--replace" in sys.argv))
+    cities = None
+    if "--city" in sys.argv:
+        cities = [c.strip() for c in sys.argv[sys.argv.index("--city") + 1].split(",") if c.strip() in CITY_NAME]
+    asyncio.run(main(per, "--replace" in sys.argv, cities))

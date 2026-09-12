@@ -202,6 +202,10 @@ PRICE = {"Outdoors": 0, "Landmark": 0, "Culture": 2, "Music": 3, "Nightlife": 2,
 #: Nouns that settle it whatever the title says — a tower can be a landmark, but
 #: not if the article calls it a skyscraper.
 HARD_NOT_A_PLACE = (
+    # Somewhere you attend a thing, not somewhere you go: conference halls, and
+    # recurring exhibitions that are an event with a name rather than a place.
+    "convention", "conference center", "conference centre", "exhibition building",
+    "exhibition hall", "exhibition of", "trade show", "biennial", "triennial", "art fair",
     "skyscraper", "office building", "office tower", "residential", "apartment",
     "hotel", "motel", "hostel", "condominium", "housing development",
     "school", "college", "university", "academy", "hospital", "medical center",
