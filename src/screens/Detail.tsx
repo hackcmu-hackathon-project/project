@@ -110,17 +110,28 @@ export function Detail({
           <Eyebrow style={{ paddingHorizontal: 22, paddingTop: 26, paddingBottom: 10 }}>
             How your people rated it
           </Eyebrow>
-          <Row style={{ flexWrap: 'wrap', gap: 10, paddingHorizontal: 22 }}>
+          <View style={{ paddingHorizontal: 22, gap: 10 }}>
             {theirs.map((f) => (
-              <Row key={f.sub} style={{ gap: 8, paddingLeft: 8, paddingRight: 12, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line }}>
-                <Initials name={f.name} color={f.color} size={26} />
-                <T size={13}>{f.name}</T>
-                <T s="semi" size={13} c={scoreColors(f.score)[0] === colors.chip ? colors.muted : scoreColors(f.score)[0]}>
-                  {fmtScore(f.score)}
-                </T>
-              </Row>
+              <Touch
+                key={f.sub}
+                onPress={() => onOpenActivity(f.sub, item.id)}
+                style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'flex-start' }}
+              >
+                <Initials name={f.name} color={f.color} size={30} />
+                <View style={{ flex: 1 }}>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <T s="semi" size={13.5}>{f.name}</T>
+                    <T s="semi" size={13} c={scoreColors(f.score)[0] === colors.chip ? colors.muted : scoreColors(f.score)[0]}>
+                      {fmtScore(f.score)}
+                    </T>
+                  </Row>
+                  {f.note ? (
+                    <T size={13.5} c={colors.ink2} style={{ marginTop: 4, lineHeight: 19 }}>“{f.note}”</T>
+                  ) : null}
+                </View>
+              </Touch>
             ))}
-          </Row>
+          </View>
         </>
       ) : null}
 
@@ -158,7 +169,8 @@ export function Detail({
 
       {item.photoCredit ? (
         <T s="soft" size={11} style={{ paddingHorizontal: 22, paddingTop: 22, color: colors.faint, lineHeight: 16 }}>
-          Photo: {item.photoCredit}{item.photoLicense ? ` · ${item.photoLicense}` : ''} · via Openverse
+          Photo: {item.photoCredit}{item.photoLicense ? ` · ${item.photoLicense}` : ''}
+          {item.photoProvider ? ` · via ${item.photoProvider}` : ''}
         </T>
       ) : null}
     </ScrollView>

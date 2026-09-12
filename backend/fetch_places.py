@@ -17,12 +17,14 @@ import asyncio
 import sys
 
 from app.db import close_client, ensure_indexes, get_db
-from neighborhoods import nearest
+from neighborhoods import distance_km, nearest
 from places_source import (
     CITY_POINTS,
+    definition,
     DURATION,
     PRICE,
     classify,
+    tags_for,
     details,
     first_sentences,
     geosearch,
@@ -61,8 +63,12 @@ def collect(city: str, per_city: int) -> list[dict]:
             lat, lon = hit.get("lat"), hit.get("lon")
         if lat is None:
             continue
+        # Geosearch spills past the city line; if nothing we can name is within a
+        # few kilometres, it isn't in the city we're building a catalogue for.
+        if distance_km(city, lat, lon) > 6:
+            continue
         extract = page.get("extract", "")
-        category = classify(f"{page['title']} {extract[:400]}", page["title"]) or "Landmark"
+        category = classify(definition(extract), page["title"]) or "Landmark"
         thumb = (page.get("thumbnail") or {}).get("source")
         out.append(
             {
@@ -76,7 +82,7 @@ def collect(city: str, per_city: int) -> list[dict]:
                 "best_time": "",
                 "note": first_sentences(extract),
                 "tip": "",
-                "tags": [t.lower() for t in (category,)],
+                "tags": tags_for(category, PRICE[category], DURATION[category]),
                 "img": "photo",
                 "lat": lat,
                 "lon": lon,
@@ -88,6 +94,7 @@ def collect(city: str, per_city: int) -> list[dict]:
                 "photo_thumb": thumb,
                 "photo_credit": "Wikipedia contributors",
                 "photo_license": "CC BY-SA",
+                "photo_provider": "Wikipedia",
                 "photo_source_url": page.get("fullurl"),
             }
         )

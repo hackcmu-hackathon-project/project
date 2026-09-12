@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { colors, font, radius } from '../theme';
 import { CityKey } from '../data';
-import { Me, Person, api } from '../api';
+import { Me, MyActivity, Person, api } from '../api';
 import { Eyebrow, Initials, Row, T, Touch } from '../components/ui';
 import { useStore } from '../store';
 import { useAuth } from '../auth';
@@ -33,16 +33,19 @@ export function Profile({
   onOpenCity,
   onFindPeople,
   onOpenPerson,
+  onOpenTake,
 }: {
   top: number;
   onOpenCity: (c: CityKey) => void;
   onFindPeople: () => void;
   onOpenPerson: (sub: string) => void;
+  onOpenTake: (itemId: number) => void;
 }) {
   const { ranked, connection, me: storeMe } = useStore();
   const { user, token, signOut, configured } = useAuth();
   const [me, setMe] = useState<Me | null>(storeMe);
   const [following, setFollowing] = useState<Person[]>([]);
+  const [activity, setActivity] = useState<MyActivity[]>([]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ name: '', handle: '', bio: '' });
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -50,9 +53,14 @@ export function Profile({
   const load = useCallback(async () => {
     if (connection !== 'online') return;
     try {
-      const [profile, people] = await Promise.all([api.me(token), api.following(token)]);
+      const [profile, people, events] = await Promise.all([
+        api.me(token),
+        api.following(token),
+        api.myActivity(token),
+      ]);
       setMe(profile);
       setFollowing(people);
+      setActivity(events);
     } catch {
       /* the offline banner below already explains it */
     }
@@ -200,6 +208,36 @@ export function Profile({
           </T>
         </Touch>
       )}
+
+      {activity.length ? (
+        <>
+          <Eyebrow style={{ paddingHorizontal: 22, paddingTop: 28, paddingBottom: 10 }}>On your takes</Eyebrow>
+          <View style={{ paddingHorizontal: 22, gap: 10 }}>
+            {activity.slice(0, 6).map((e, i) => (
+              <Touch
+                key={`${e.kind}-${e.who_sub}-${e.item_id}-${i}`}
+                onPress={() => onOpenTake(e.item_id)}
+                style={{ flexDirection: 'row', gap: 10, padding: 13, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'flex-start' }}
+              >
+                <Initials name={e.who} color={e.color} size={30} />
+                <View style={{ flex: 1 }}>
+                  <T size={13.5}>
+                    <T s="semi" size={13.5}>{e.who}</T>
+                    <T s="soft" size={13.5}>
+                      {e.kind === 'reaction' ? ` reacted ${e.emoji} to ` : ' commented on '}
+                    </T>
+                    <T s="med" size={13.5}>{e.item_title}</T>
+                  </T>
+                  {e.text ? (
+                    <T size={13} c={colors.ink2} style={{ marginTop: 4, lineHeight: 18 }}>“{e.text}”</T>
+                  ) : null}
+                  <T s="soft" size={11.5} style={{ marginTop: 4, color: colors.faint }}>{e.when}</T>
+                </View>
+              </Touch>
+            ))}
+          </View>
+        </>
+      ) : null}
 
       <Eyebrow style={{ paddingHorizontal: 22, paddingTop: 28, paddingBottom: 10 }}>Taste</Eyebrow>
       {myTaste.length ? (

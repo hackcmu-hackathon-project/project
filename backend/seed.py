@@ -13,12 +13,15 @@ the local dev identity a starting list. Neither belongs in production.
 
 import asyncio
 import json
+import random
 import sys
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.db import close_client, ensure_indexes, get_db
 from app.models import TIER_BANDS
+from app.social import EMOJI
 
 SEED = Path(__file__).parent / "seed_data.json"
 DEMO_SUB = "seed|maya"
@@ -32,6 +35,71 @@ PEOPLE = [
     ("seed|theo", "Theo L.", "theo@rove.demo", "theol", "#4f7a4a", "Will walk anywhere. Has opinions about bridges."),
     ("seed|ana", "Ana C.", "ana@rove.demo", "anac", "#b3622b", "Late shows, later slices."),
 ]
+
+
+NOTES = [
+    "Went on a whim on a Tuesday. Empty, which is the whole point.",
+    "Worth the detour. Go early, it changes completely after noon.",
+    "Overrated by about a point, but I'd still take someone here.",
+    "Third time. Still the best hour you can spend in this city.",
+    "Fine. Would not cross town for it again.",
+]
+COMMENTS = [
+    "Adding this. How long did you actually spend there?",
+    "Agreed — but 8.2 is generous.",
+    "Took your advice about going early. Completely different place.",
+    "This has been on my list for a year. Consider me shamed.",
+    "The tip about the side entrance saved us an hour.",
+]
+
+
+async def _seed_interactions(db, subs: list[str], now) -> None:
+    """Give the seeded accounts something to say about each other's rankings."""
+    rng = random.Random("interactions")
+    await db.reactions.delete_many({})
+    await db.comments.delete_many({})
+
+    rows = await db.rankings.find({}, {"sub": 1, "item_id": 1}).to_list(5000)
+    rng.shuffle(rows)
+
+    reactions, comments, notes = [], [], 0
+    for row in rows[:90]:
+        actor = rng.choice([s for s in subs if s != row["sub"]])
+        post = f"{row['sub']}#{row['item_id']}"
+        reactions.append(
+            {
+                "_id": f"{actor}@{post}",
+                "actor": actor,
+                "post": post,
+                "emoji": rng.choice(EMOJI),
+                "at": now - timedelta(hours=rng.randint(1, 200)),
+            }
+        )
+        if rng.random() < 0.4:
+            comments.append(
+                {
+                    "_id": uuid.uuid4().hex,
+                    "post": post,
+                    "author": rng.choice([s for s in subs if s != row["sub"]]),
+                    "text": rng.choice(COMMENTS),
+                    "created_at": now - timedelta(hours=rng.randint(1, 180)),
+                }
+            )
+
+    # A written note is what makes a ranking worth reading.
+    for row in rows:
+        if rng.random() < 0.45:
+            await db.rankings.update_one(
+                {"sub": row["sub"], "item_id": row["item_id"]},
+                {"$set": {"note": rng.choice(NOTES)}},
+            )
+            notes += 1
+
+    if reactions:
+        await db.reactions.insert_many(reactions)
+    if comments:
+        await db.comments.insert_many(comments)
+    print(f"interactions: {len(reactions)} reactions, {len(comments)} comments, {notes} notes")
 
 
 async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
@@ -90,34 +158,42 @@ async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
             upsert=True,
         )
         await db.rankings.delete_many({"sub": sub})
-        # Rebuild the seeded scores exactly the way the ranking engine would.
-        by_city_tier: dict[tuple[str, str], list[dict]] = {}
-        pool = [i for i in data["items"] if i.get("seed_tier")]
-        # Rotate the catalogue so two people never have identical lists.
-        mine = pool if sub == DEV_SUB else [i for n, i in enumerate(pool) if (n + idx) % 4 != 0]
-        for item in mine:
-            by_city_tier.setdefault((item["city"], item["seed_tier"]), []).append(item)
+
+        # Draw from the whole catalogue — including imported places — so the feed
+        # isn't everybody ranking the same sixteen things.
         rows = []
-        for (city, tier), group in by_city_tier.items():
-            group.sort(key=lambda i: i["seed_score"], reverse=True)
-            low, high = TIER_BANDS[tier]
-            step = (high - low) / (len(group) - 1) if len(group) > 1 else 0.0
-            for idx, item in enumerate(group):
-                score = round(high - step * idx, 1) if len(group) > 1 else round((low + high) / 2, 1)
-                rows.append(
-                    {
-                        "sub": sub,
-                        "item_id": item["id"],
-                        "tier": tier,
-                        "score": score,
-                        "note": None,
-                        "created_at": now,
-                        "updated_at": now,
-                    }
-                )
+        for city in ("sf", "nyc"):
+            catalogue = await db.items.find({"city": city}, {"id": 1}).to_list(2000)
+            rng = random.Random(f"{sub}:{city}")
+            picked = rng.sample(catalogue, min(len(catalogue), rng.randint(8, 14)))
+            tiers = ["loved"] * 3 + ["liked"] * 5 + ["okay"] * 2
+            by_tier: dict[str, list[int]] = {}
+            for n, doc in enumerate(picked):
+                by_tier.setdefault(tiers[n % len(tiers)], []).append(doc["id"])
+
+            for tier, ids in by_tier.items():
+                low, high = TIER_BANDS[tier]
+                step = (high - low) / (len(ids) - 1) if len(ids) > 1 else 0.0
+                for n, item_id in enumerate(ids):
+                    score = round(high - step * n, 1) if len(ids) > 1 else round((low + high) / 2, 1)
+                    rows.append(
+                        {
+                            "sub": sub,
+                            "item_id": item_id,
+                            "tier": tier,
+                            "score": score,
+                            "note": None,
+                            "created_at": now,
+                            "updated_at": now - timedelta(hours=rng.randint(1, 240)),
+                        }
+                    )
+
         if rows:
             await db.rankings.insert_many(rows)
         print(f"rankings: {len(rows)} for {sub}")
+
+    if accounts:
+        await _seed_interactions(db, [a[0] for a in accounts], now)
 
     if accounts:
         # The dev user starts out following two people, so the feed is not empty,

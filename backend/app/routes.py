@@ -404,6 +404,9 @@ async def my_saves(
     ids = await social.saved_ids(db, user.sub)
     if not ids:
         return []
+    # Want-to-go never includes somewhere you've been, whatever the saves say.
+    ranked = {r["item_id"] for r in await db.rankings.find({"sub": user.sub}, {"item_id": 1}).to_list(1000)}
+    ids = [i for i in ids if i not in ranked]
     docs = await db.items.find({"id": {"$in": ids}}, {"_id": 0}).to_list(500)
     by_id = {d["id"]: d for d in docs}
     return [Item(**by_id[i]) for i in ids if i in by_id]
@@ -518,6 +521,62 @@ async def remove_comment(
     """You can only delete your own comments."""
     if not await social.delete_comment(db, user.sub, comment_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your comment")
+
+
+@router.get("/activity/mine")
+async def my_activity(
+    limit: int = 20,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """What other people have done to your rankings lately."""
+    mine = await db.rankings.find({"sub": user.sub}, {"item_id": 1}).to_list(1000)
+    posts = [social.post_id(user.sub, r["item_id"]) for r in mine]
+    if not posts:
+        return []
+
+    reactions = await db.reactions.find({"post": {"$in": posts}, "actor": {"$ne": user.sub}}).sort("at", -1).to_list(limit)
+    comments = await db.comments.find({"post": {"$in": posts}, "author": {"$ne": user.sub}}).sort("created_at", -1).to_list(limit)
+
+    actors = list({*(r["actor"] for r in reactions), *(c["author"] for c in comments)})
+    people_docs = await db.users.find({"_id": {"$in": actors}}).to_list(200)
+    by_sub = {p["_id"]: p for p in people_docs}
+
+    item_ids = [int(p.split("#")[1]) for p in {*(r["post"] for r in reactions), *(c["post"] for c in comments)}]
+    items = await db.items.find({"id": {"$in": item_ids}}, {"_id": 0, "id": 1, "title": 1}).to_list(200)
+    titles = {i["id"]: i["title"] for i in items}
+
+    events = [
+        {
+            "kind": "reaction",
+            "at": r["at"],
+            "who": by_sub.get(r["actor"], {}).get("name", "Someone"),
+            "who_sub": r["actor"],
+            "color": by_sub.get(r["actor"], {}).get("color", "#8a2d6e"),
+            "emoji": r["emoji"],
+            "item_id": int(r["post"].split("#")[1]),
+            "item_title": titles.get(int(r["post"].split("#")[1]), ""),
+            "text": "",
+        }
+        for r in reactions
+    ] + [
+        {
+            "kind": "comment",
+            "at": c["created_at"],
+            "who": by_sub.get(c["author"], {}).get("name", "Someone"),
+            "who_sub": c["author"],
+            "color": by_sub.get(c["author"], {}).get("color", "#8a2d6e"),
+            "emoji": "",
+            "item_id": int(c["post"].split("#")[1]),
+            "item_title": titles.get(int(c["post"].split("#")[1]), ""),
+            "text": c["text"],
+        }
+        for c in comments
+    ]
+    events.sort(key=lambda e: e["at"], reverse=True)
+    for e in events:
+        e["when"] = _ago(e.pop("at"))
+    return events[:limit]
 
 
 @router.get("/emoji")

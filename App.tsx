@@ -28,7 +28,7 @@ type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add';
 
 function Shell() {
   const insets = useSafeAreaInsets();
-  const { setCity, refresh } = useStore();
+  const { setCity, refresh, me } = useStore();
   const [tab, setTab] = useState<TabKey>('feed');
   const [screen, setScreen] = useState<Screen>({ name: 'feed' });
   const [rankKey, setRankKey] = useState(0);
@@ -92,6 +92,7 @@ function Shell() {
         onOpenCity={(c: CityKey) => { setCity(c); goTab('list'); }}
         onFindPeople={() => setScreen({ name: 'people' })}
         onOpenPerson={openPerson}
+        onOpenTake={(itemId) => me && openActivity(me.sub, itemId)}
       />
     );
   }

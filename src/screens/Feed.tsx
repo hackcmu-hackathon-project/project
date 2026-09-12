@@ -83,23 +83,23 @@ export function Feed({
         const item = f.item;
         return (
           <View key={f.id} style={{ paddingHorizontal: 22, paddingVertical: 18, borderTopWidth: 1, borderTopColor: colors.hair }}>
-            <Touch onPress={() => open(f)}>
-              <Row style={{ gap: 10, marginBottom: 12 }}>
-                <Touch onPress={() => f.userSub && onOpenPerson(f.userSub)}>
-                  <Initials name={f.userName} color={f.userColor} />
-                </Touch>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <T size={14}>
-                    <T s="semi" size={14}>{f.userName}</T>
-                    <T s="soft" size={14}>{`  ${f.action}`}</T>
-                  </T>
-                  <T size={12} c={colors.faint} style={{ marginTop: 2 }}>
-                    {CITIES[item.city]} · {f.time}
-                  </T>
-                </View>
-                <ScoreDot score={f.score} />
-              </Row>
+            <Row style={{ gap: 10, marginBottom: 12 }}>
+              <Touch onPress={() => f.userSub && onOpenPerson(f.userSub)} label={`${f.userName}'s profile`}>
+                <Initials name={f.userName} color={f.userColor} />
+              </Touch>
+              <Touch onPress={() => open(f)} style={{ flex: 1, minWidth: 0 }}>
+                <T size={14}>
+                  <T s="semi" size={14}>{f.userName}</T>
+                  <T s="soft" size={14}>{`  ${f.action}`}</T>
+                </T>
+                <T size={12} c={colors.faint} style={{ marginTop: 2 }}>
+                  {CITIES[item.city]} · {f.time}
+                </T>
+              </Touch>
+              <ScoreDot score={f.score} />
+            </Row>
 
+            <Touch onPress={() => open(f)}>
               <Row style={{ gap: 14, alignItems: 'flex-start' }}>
                 <Photo uri={item.photoThumb ?? item.photo} radius={12} style={{ width: 96, height: 96 }} />
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -110,7 +110,7 @@ export function Feed({
               </Row>
             </Touch>
 
-            <Row style={{ gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+            <Row style={{ gap: 6, marginTop: 14 }}>
               {EMOJI.map((e) => {
                 const n = f.reactions[e] ?? 0;
                 const on = f.myReaction === e;
@@ -135,18 +135,21 @@ export function Feed({
                   </Touch>
                 );
               })}
-              <View style={{ flex: 1 }} />
-              <Touch onPress={() => open(f)} style={{ paddingVertical: 6, paddingHorizontal: 4 }}>
+            </Row>
+
+            <Row style={{ marginTop: 10 }}>
+              <Touch onPress={() => open(f)} style={{ paddingVertical: 2 }} label="Comments">
                 <T s="soft" size={13}>{f.comments ? `${f.comments} comment${f.comments === 1 ? '' : 's'}` : 'Comment'}</T>
               </Touch>
+              <View style={{ flex: 1 }} />
               {myScore(item.id) != null ? (
-                <Touch onPress={() => onOpenItem(item.id)} style={{ paddingVertical: 6, paddingLeft: 10 }} label="Your ranking">
+                <Touch onPress={() => onOpenItem(item.id)} style={{ paddingVertical: 2 }} label="Your ranking">
                   <T s="med" size={13} c={colors.muted}>You gave it {myScore(item.id)!.toFixed(1)}</T>
                 </Touch>
               ) : (
                 <Touch
                   onPress={() => toggleSave(item.id)}
-                  style={{ paddingVertical: 6, paddingLeft: 10 }}
+                  style={{ paddingVertical: 2 }}
                   label={f.saved ? 'Remove from want to go' : 'Add to want to go'}
                 >
                   <T s="med" size={13} c={f.saved ? colors.muted : colors.plum}>
