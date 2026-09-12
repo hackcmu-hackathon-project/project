@@ -1,14 +1,27 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius } from '../theme';
-import { Hatch, T, Touch } from '../components/ui';
+import { T, Touch } from '../components/ui';
 import { useAuth } from '../auth';
 
 export function SignIn() {
   const { signIn, signInAsGuest, loading, configured, error } = useAuth();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Hatch style={{ flex: 1 }} />
+      <View style={{ flex: 1 }}>
+        <Image
+          source={require('../../assets/signin.jpg')}
+          resizeMode="cover"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+        {/* Fade the photo into the paper so the type below sits on a clean ground. */}
+        <LinearGradient
+          colors={['rgba(248,246,243,0)', 'rgba(248,246,243,0.7)', colors.bg]}
+          locations={[0.55, 0.85, 1]}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '55%' }}
+        />
+      </View>
       <View style={{ padding: 28, paddingBottom: 40 }}>
         <T s="serif" size={52} style={{ lineHeight: 54 }}>Rove</T>
         <T s="soft" size={16} style={{ marginTop: 10, lineHeight: 23 }}>
