@@ -38,6 +38,7 @@ async def find_photo(query: str, *, timeout: float = 20.0) -> dict | None:
                     "photo_credit": hit.get("creator") or hit.get("source") or "Unknown",
                     "photo_license": f"{hit.get('license', '')} {hit.get('license_version', '')}".strip().upper(),
                     "photo_source_url": hit.get("foreign_landing_url") or url,
+                    "photo_provider": "Openverse",
                 }
     return None
 

@@ -20,6 +20,7 @@ export type ApiItem = {
   photo_credit: string | null;
   photo_license: string | null;
   photo_source_url: string | null;
+  photo_provider?: string | null;
   wikipedia_url?: string | null;
 };
 
@@ -103,6 +104,7 @@ export const toItem = (a: ApiItem): Item => ({
   photoCredit: a.photo_credit ?? null,
   photoLicense: a.photo_license ?? null,
   photoSource: a.photo_source_url ?? null,
+  photoProvider: a.photo_provider ?? null,
   wikipedia: a.wikipedia_url ?? null,
   tier: null,
   score: null,
@@ -141,6 +143,18 @@ export type ItemRanking = {
   score: number;
   tier: string;
   note: string | null;
+};
+
+export type MyActivity = {
+  kind: 'reaction' | 'comment';
+  who: string;
+  who_sub: string;
+  color: string;
+  emoji: string;
+  text: string;
+  item_id: number;
+  item_title: string;
+  when: string;
 };
 
 export type Person = {
@@ -200,6 +214,7 @@ export const api = {
     token: string | null,
     body: { city: string; title: string; hood: string; category: string; duration_min?: number; price?: number; note?: string; tip?: string; best_time?: string }
   ): Promise<Item> => toItem(await call('/api/items', token, { method: 'POST', body: JSON.stringify(body) })),
+  myActivity: (token: string | null): Promise<MyActivity[]> => call('/api/activity/mine', token),
   itemRankings: (token: string | null, itemId: number): Promise<ItemRanking[]> =>
     call(`/api/items/${itemId}/rankings`, token),
   saves: (token: string | null): Promise<ApiItem[]> => call('/api/saves', token),

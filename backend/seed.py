@@ -15,11 +15,13 @@ import asyncio
 import json
 import random
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.db import close_client, ensure_indexes, get_db
 from app.models import TIER_BANDS
+from app.social import EMOJI
 
 SEED = Path(__file__).parent / "seed_data.json"
 DEMO_SUB = "seed|maya"
@@ -33,6 +35,71 @@ PEOPLE = [
     ("seed|theo", "Theo L.", "theo@rove.demo", "theol", "#4f7a4a", "Will walk anywhere. Has opinions about bridges."),
     ("seed|ana", "Ana C.", "ana@rove.demo", "anac", "#b3622b", "Late shows, later slices."),
 ]
+
+
+NOTES = [
+    "Went on a whim on a Tuesday. Empty, which is the whole point.",
+    "Worth the detour. Go early, it changes completely after noon.",
+    "Overrated by about a point, but I'd still take someone here.",
+    "Third time. Still the best hour you can spend in this city.",
+    "Fine. Would not cross town for it again.",
+]
+COMMENTS = [
+    "Adding this. How long did you actually spend there?",
+    "Agreed — but 8.2 is generous.",
+    "Took your advice about going early. Completely different place.",
+    "This has been on my list for a year. Consider me shamed.",
+    "The tip about the side entrance saved us an hour.",
+]
+
+
+async def _seed_interactions(db, subs: list[str], now) -> None:
+    """Give the seeded accounts something to say about each other's rankings."""
+    rng = random.Random("interactions")
+    await db.reactions.delete_many({})
+    await db.comments.delete_many({})
+
+    rows = await db.rankings.find({}, {"sub": 1, "item_id": 1}).to_list(5000)
+    rng.shuffle(rows)
+
+    reactions, comments, notes = [], [], 0
+    for row in rows[:90]:
+        actor = rng.choice([s for s in subs if s != row["sub"]])
+        post = f"{row['sub']}#{row['item_id']}"
+        reactions.append(
+            {
+                "_id": f"{actor}@{post}",
+                "actor": actor,
+                "post": post,
+                "emoji": rng.choice(EMOJI),
+                "at": now - timedelta(hours=rng.randint(1, 200)),
+            }
+        )
+        if rng.random() < 0.4:
+            comments.append(
+                {
+                    "_id": uuid.uuid4().hex,
+                    "post": post,
+                    "author": rng.choice([s for s in subs if s != row["sub"]]),
+                    "text": rng.choice(COMMENTS),
+                    "created_at": now - timedelta(hours=rng.randint(1, 180)),
+                }
+            )
+
+    # A written note is what makes a ranking worth reading.
+    for row in rows:
+        if rng.random() < 0.45:
+            await db.rankings.update_one(
+                {"sub": row["sub"], "item_id": row["item_id"]},
+                {"$set": {"note": rng.choice(NOTES)}},
+            )
+            notes += 1
+
+    if reactions:
+        await db.reactions.insert_many(reactions)
+    if comments:
+        await db.comments.insert_many(comments)
+    print(f"interactions: {len(reactions)} reactions, {len(comments)} comments, {notes} notes")
 
 
 async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
@@ -124,6 +191,9 @@ async def main(demo_people: bool, dev_user: bool, reset: bool) -> None:
         if rows:
             await db.rankings.insert_many(rows)
         print(f"rankings: {len(rows)} for {sub}")
+
+    if accounts:
+        await _seed_interactions(db, [a[0] for a in accounts], now)
 
     if accounts:
         # The dev user starts out following two people, so the feed is not empty,

@@ -26,6 +26,7 @@ const items = seed.items.map((i) => ({
   photoCredit: null,
   photoLicense: null,
   photoSource: null,
+  photoProvider: null,
   wikipedia: null,
 }));
 
@@ -61,6 +62,7 @@ export type Item = {
   photoCredit: string | null;
   photoLicense: string | null;
   photoSource: string | null;
+  photoProvider: string | null;
   wikipedia: string | null;
   /** Your ranking of this, once the API has told us. Never baked into the seed. */
   tier: Tier | null;
