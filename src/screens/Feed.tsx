@@ -1,26 +1,28 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { colors, font, scoreColors, fmtScore } from '../theme';
-import { CITIES, FEED, itemById } from '../data';
+import { CITIES, meta } from '../data';
 import { Hatch, Initials, Row, ScoreDot, T, Touch } from '../components/ui';
+import { useStore } from '../store';
 
 export function Feed({ top, onOpen }: { top: number; onOpen: (id: number) => void }) {
+  const { feed, connection } = useStore();
   return (
     <ScrollView contentContainerStyle={{ paddingTop: top + 8, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
       <Row style={{ alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 22, paddingBottom: 14 }}>
         <T s="serif" size={36}>Rove</T>
-        <T s="soft" size={13}>Friends · this week</T>
+        <T s="soft" size={13}>{connection === 'offline' ? 'Offline · seed data' : 'Friends · this week'}</T>
       </Row>
 
-      {FEED.map((p) => {
-        const item = itemById(p.itemId);
+      {feed.map((p) => {
+        const item = p.item;
         return (
           <Touch key={p.id} onPress={() => onOpen(item.id)} style={{ paddingHorizontal: 22, paddingVertical: 18, borderTopWidth: 1, borderTopColor: colors.hair }}>
             <Row style={{ gap: 10, marginBottom: 12 }}>
-              <Initials name={p.friend.name} color={p.friend.color} />
+              <Initials name={p.userName} color={p.userColor} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <T size={14}>
-                  <T s="semi" size={14}>{p.friend.name}</T>
+                  <T s="semi" size={14}>{p.userName}</T>
                   <T s="soft" size={14}>{`  ${p.action}`}</T>
                 </T>
                 <T size={12} c={colors.faint} style={{ marginTop: 2 }}>
@@ -37,7 +39,7 @@ export function Feed({ top, onOpen }: { top: number; onOpen: (id: number) => voi
               <View style={{ flex: 1, minWidth: 0 }}>
                 <T s="serif" size={22} style={{ lineHeight: 25, marginBottom: 4 }}>{item.title}</T>
                 <T s="soft" size={12} style={{ marginBottom: 8 }}>
-                  {item.hood} · {item.stops} stops · {item.hours}h
+                  {meta(item)}
                 </T>
                 <T size={14} c={colors.ink2} style={{ lineHeight: 20 }}>{p.note}</T>
               </View>
