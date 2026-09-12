@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import close_client, ensure_indexes, get_db
+from .mapview import router as map_router
 from .routes import router
 
 settings = get_settings()
@@ -38,6 +39,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(map_router)
 
 
 @app.get("/health")

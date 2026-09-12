@@ -211,6 +211,12 @@ async def cities(db: AsyncIOMotorDatabase = Depends(get_db)):
     return out
 
 
+@router.get("/places/suggest")
+async def suggest_places(q: str, city: City):
+    """Type-ahead for the address field."""
+    return await geocode.suggest(q, city)
+
+
 @router.get("/geocode")
 async def geocode_address(q: str, city: City):
     """Where an address lands, so the form can show it on a map before saving."""

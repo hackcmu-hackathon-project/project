@@ -20,6 +20,63 @@ VIEWBOX = {
 }
 
 
+#: Photon is OSM data too, but built for type-ahead — which Nominatim's usage
+#: policy explicitly forbids.
+SUGGEST_ENDPOINT = "https://photon.komoot.io/api/"
+
+#: Roughly the middle of each city, to bias suggestions towards it.
+CENTRE = {"sf": (37.7749, -122.4194), "nyc": (40.7549, -73.9840), "pgh": (40.4417, -79.9959)}
+
+
+def _label(props: dict) -> str:
+    """A readable one-liner: the place, its street, its neighborhood."""
+    parts = [
+        props.get("name"),
+        props.get("street") if props.get("street") != props.get("name") else None,
+        props.get("district") or props.get("city"),
+    ]
+    seen, out = set(), []
+    for part in parts:
+        if part and part not in seen:
+            seen.add(part)
+            out.append(part)
+    return ", ".join(out)
+
+
+async def suggest(query: str, city: str, limit: int = 6) -> list[dict]:
+    """Address and place completions near a city, for a type-ahead field."""
+    query = query.strip()
+    if len(query) < 2:
+        return []
+    lat, lon = CENTRE.get(city, (0.0, 0.0))
+    try:
+        async with httpx.AsyncClient(timeout=10, headers={"User-Agent": UA}) as client:
+            response = await client.get(
+                SUGGEST_ENDPOINT,
+                params={"q": query, "limit": limit * 3, "lat": lat, "lon": lon, "zoom": 12, "lang": "en"},
+            )
+            response.raise_for_status()
+            features = response.json().get("features", [])
+    except (httpx.HTTPError, ValueError):
+        return []
+
+    out: list[dict] = []
+    for feature in features:
+        try:
+            lon_, lat_ = feature["geometry"]["coordinates"][:2]
+        except (KeyError, IndexError, TypeError):
+            continue
+        # Photon leans towards the point we give it but still returns far-away hits.
+        if not _inside(city, lat_, lon_):
+            continue
+        label = _label(feature.get("properties", {}))
+        if label and not any(o["label"] == label for o in out):
+            out.append({"label": label, "lat": lat_, "lon": lon_})
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def describe(address: str, city: str) -> dict | None:
     """Like locate(), but also returns what OpenStreetMap thinks it found."""
     hit = await _search(address, city)

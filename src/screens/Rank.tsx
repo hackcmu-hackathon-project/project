@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 import { CATEGORIES, colors, font, radius, scoreColors, fmtScore, TIERS, TIER_ORDER, Tier } from '../theme';
 import { CITIES, CityKey, meta } from '../data';
 import { RankState, api } from '../api';
@@ -25,7 +25,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   const [hoodOpen, setHoodOpen] = useState(false);
   const [located, setLocated] = useState<{ lat: number; lon: number; label: string } | null>(null);
   const [locating, setLocating] = useState(false);
-  const { width } = useWindowDimensions();
+  const [hints, setHints] = useState<{ label: string; lat: number; lon: number }[]>([]);
   const [draft, setDraft] = useState<{
     title: string;
     hood: string;
@@ -96,24 +96,25 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
 
   useEffect(() => {
     const address = draft.address.trim();
-    if (step !== 'new' || address.length < 3) {
-      setLocated(null);
+    // Once something is chosen, the field matches it — don't re-suggest it.
+    if (step !== 'new' || address.length < 2 || address === located?.label) {
+      setHints([]);
       return;
     }
     let alive = true;
     setLocating(true);
     const timer = setTimeout(() => {
       api
-        .geocode(token, address, draft.city)
-        .then((found) => alive && setLocated(found))
-        .catch(() => alive && setLocated(null))
+        .suggestPlaces(token, address, draft.city)
+        .then((rows) => alive && setHints(rows))
+        .catch(() => alive && setHints([]))
         .finally(() => alive && setLocating(false));
-    }, 700);
+    }, 350);
     return () => {
       alive = false;
       clearTimeout(timer);
     };
-  }, [draft.address, draft.city, step, token]);
+  }, [draft.address, draft.city, step, token, located]);
 
   const advance = async (run: () => Promise<RankState>) => {
     setBusy(true);
@@ -200,11 +201,11 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
         : !draft.hood
           ? 'Pick a neighborhood'
           : draft.address.trim().length <= 2
-            ? 'Add an address or cross streets'
+            ? 'Search for where it is'
             : locating
               ? 'Checking that address…'
               : !located
-                ? 'That address didn’t land anywhere on the map'
+                ? 'Pick one of the suggestions so we know where it is'
                 : '';
     const field = (
       label: string,
@@ -284,22 +285,41 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
               </ScrollView>
             </View>
           ) : null}
-          {field('Address or cross streets', 'address', '18th & Dolores')}
-          <View style={{ marginTop: -8, marginBottom: 14, gap: 6 }}>
+          {field('Where is it', 'address', 'Search a place or address')}
+          <View style={{ marginTop: -8, marginBottom: 14, gap: 8 }}>
+            {hints.length ? (
+              <View style={{ borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line }}>
+                {hints.map((hint) => (
+                  <Touch
+                    key={`${hint.label}-${hint.lat}`}
+                    onPress={() => {
+                      setLocated(hint);
+                      setDraft((d) => ({ ...d, address: hint.label }));
+                      setHints([]);
+                    }}
+                    style={{ paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.hair }}
+                  >
+                    <T size={14}>{hint.label}</T>
+                  </Touch>
+                ))}
+              </View>
+            ) : null}
+
             {located ? (
               <>
-                <MiniMap lat={located.lat} lon={located.lon} width={width - 44} />
-                <T s="soft" size={12} numberOfLines={2} style={{ color: colors.faint, lineHeight: 17 }}>
-                  {located.label}
+                <MiniMap
+                  lat={located.lat}
+                  lon={located.lon}
+                  draggable
+                  onMove={(point) => setLocated((current) => (current ? { ...current, ...point } : current))}
+                />
+                <T s="soft" size={12} style={{ color: colors.faint, lineHeight: 17 }}>
+                  Drag the pin if it's not quite right.
                 </T>
               </>
             ) : (
               <T s="soft" size={12} style={{ color: colors.faint, lineHeight: 17 }}>
-                {locating
-                  ? 'Looking it up…'
-                  : draft.address.trim().length > 2
-                    ? 'No match yet — try a street address or a nearby cross street.'
-                    : 'This is how trips route to it, so it has to be somewhere a map can find.'}
+                {locating ? 'Searching…' : 'Search for the place or its address, then check the pin.'}
               </T>
             )}
           </View>
@@ -336,6 +356,8 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                   title: draft.title.trim(),
                   hood: draft.hood.trim(),
                   address: draft.address.trim(),
+                  lat: located?.lat,
+                  lon: located?.lon,
                   category: draft.category,
                   note: draft.note.trim(),
                   best_time: draft.bestTime.trim(),

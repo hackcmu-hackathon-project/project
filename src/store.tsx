@@ -51,6 +51,8 @@ type Ctx = {
     title: string;
     hood: string;
     address?: string;
+    lat?: number;
+    lon?: number;
     category: string;
     note?: string;
     tip?: string;
@@ -284,6 +286,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       title: string;
       hood: string;
       address?: string;
+      lat?: number;
+      lon?: number;
       category: string;
       note?: string;
       tip?: string;

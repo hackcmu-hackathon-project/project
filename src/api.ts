@@ -306,6 +306,8 @@ export const api = {
       title: string;
       hood: string;
       address?: string;
+      lat?: number;
+      lon?: number;
       category: string;
       duration_min?: number;
       price?: number;
@@ -315,6 +317,12 @@ export const api = {
     }
   ): Promise<Item> => toItem(await call('/api/items', token, { method: 'POST', body: JSON.stringify(body) })),
   myActivity: (token: string | null): Promise<MyActivity[]> => call('/api/activity/mine', token),
+  suggestPlaces: (
+    token: string | null,
+    q: string,
+    city: string
+  ): Promise<{ label: string; lat: number; lon: number }[]> =>
+    call(`/api/places/suggest?q=${encodeURIComponent(q)}&city=${city}`, token),
   geocode: (token: string | null, q: string, city: string): Promise<{ lat: number; lon: number; label: string }> =>
     call(`/api/geocode?q=${encodeURIComponent(q)}&city=${city}`, token),
   neighborhoods: (token: string | null, city: string): Promise<string[]> =>
