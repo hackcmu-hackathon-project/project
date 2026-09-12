@@ -1,13 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
-import { AgentReply, AgentTurn, SavedTrip, api, toItem } from '../api';
+import { AgentTurn, SavedTrip, api, toItem } from '../api';
+import { useAgentChat } from '../agentChat';
 import { useAuth } from '../auth';
 import { CITIES, meta } from '../data';
 import { useStore } from '../store';
 import { colors, font, radius } from '../theme';
 import { CityChips, Photo, Row, T, Touch } from '../components/ui';
-
-type Entry = AgentTurn & { places?: AgentReply['places']; trip?: SavedTrip | null };
+import { RichText } from '../components/RichText';
 
 const OPENERS = [
   'Something outside this afternoon',
@@ -27,8 +27,8 @@ export function Agent({
   onOpenTrip: (trip: SavedTrip) => void;
 }) {
   const { token } = useAuth();
-  const { city, setCity, connection, refresh } = useStore();
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const { city, setCity, connection, refresh, items } = useStore();
+  const { entries, setEntries } = useAgentChat();
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const scroller = useRef<ScrollView>(null);
@@ -113,7 +113,14 @@ export function Agent({
             </View>
           ) : (
             <View key={i} style={{ gap: 12 }}>
-              <T size={15} c={colors.ink} style={{ lineHeight: 22 }}>{entry.text}</T>
+              <RichText
+                text={entry.text}
+                places={Object.fromEntries(
+                  // Anything in the catalogue can be linked, not just what came back this turn.
+                  [...items, ...(entry.places ?? []).map(toItem)].map((p) => [p.title.toLowerCase(), p.id])
+                )}
+                onOpenItem={onOpenItem}
+              />
 
               {entry.places?.length ? (
                 <View style={{ gap: 8 }}>

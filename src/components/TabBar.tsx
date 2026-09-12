@@ -6,23 +6,40 @@ import { Row, T, Touch } from './ui';
 
 export type TabKey = 'feed' | 'list' | 'agent' | 'explore' | 'profile';
 
-export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: TabKey) => void; onAdd: () => void; bottom: number }) {
+export function TabBar({
+  tab,
+  onTab,
+  onAdd,
+  bottom,
+}: {
+  tab: TabKey;
+  onTab: (t: TabKey) => void;
+  onAdd: () => void;
+  bottom: number;
+}) {
+  // Each label takes an equal share, so the pills sit at even intervals however
+  // long the words are, and the round pair stays centred between them.
   const item = (key: TabKey, label: string) => {
     const on = tab === key;
     return (
-      <Touch
-        key={key}
-        onPress={() => onTab(key)}
-        label={label}
-        style={{ paddingHorizontal: 13, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: on ? colors.ink : 'transparent' }}
-      >
-        <T s="med" size={13} c={on ? '#fff' : colors.muted}>{label}</T>
-      </Touch>
+      <View key={key} style={{ flex: 1, alignItems: 'center' }}>
+        <Touch
+          onPress={() => onTab(key)}
+          label={label}
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 9,
+            borderRadius: radius.pill,
+            backgroundColor: on ? colors.ink : 'transparent',
+          }}
+        >
+          <T s="med" size={13} c={on ? '#fff' : colors.muted}>{label}</T>
+        </Touch>
+      </View>
     );
   };
 
-  /** The two round actions in the middle: rank something, and ask the assistant. */
-  const circle = (glyph: string, label: string, onPress: () => void, filled: boolean, size = 22) => (
+  const circle = (glyph: string, label: string, onPress: () => void, size: number, active = false) => (
     <Touch
       onPress={onPress}
       label={label}
@@ -30,13 +47,15 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
         width: 44,
         height: 44,
         borderRadius: 22,
-        marginVertical: -2,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: filled ? colors.plum : colors.plumSoft,
+        backgroundColor: colors.plum,
+        // Only the assistant has an on/off state; ＋ is always an action.
+        borderWidth: active ? 2 : 0,
+        borderColor: colors.ink,
       }}
     >
-      <T size={size} c={filled ? '#fff' : colors.plum} style={{ lineHeight: size + 3 }}>{glyph}</T>
+      <T size={size} c="#fff" style={{ lineHeight: size + 3 }}>{glyph}</T>
     </Touch>
   );
 
@@ -44,11 +63,18 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
     <LinearGradient
       colors={['rgba(248,246,243,0)', colors.bg]}
       locations={[0, 0.3]}
-      style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingTop: 18, paddingBottom: Math.max(bottom, 16) }}
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingHorizontal: 22,
+        paddingTop: 18,
+        paddingBottom: Math.max(bottom, 16),
+      }}
     >
       <Row
         style={{
-          justifyContent: 'space-between',
           paddingHorizontal: 6,
           paddingVertical: 6,
           borderRadius: radius.pill,
@@ -60,9 +86,9 @@ export function TabBar({ tab, onTab, onAdd, bottom }: { tab: TabKey; onTab: (t: 
       >
         {item('feed', 'Feed')}
         {item('list', 'Lists')}
-        <Row style={{ gap: 6 }}>
-          {circle('＋', 'Rank something', onAdd, true, 24)}
-          {circle('✦', 'Ask the assistant', () => onTab('agent'), tab === 'agent', 19)}
+        <Row style={{ gap: 8, marginHorizontal: 2 }}>
+          {circle('＋', 'Rank something', onAdd, 24)}
+          {circle('✦', 'Ask the assistant', () => onTab('agent'), 19, tab === 'agent')}
         </Row>
         {item('explore', 'Explore')}
         {item('profile', 'You')}

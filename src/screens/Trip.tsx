@@ -27,11 +27,13 @@ const pretty = (iso: string) =>
 export function Trip({
   initial,
   top,
+  from,
   onClose,
   onSaved,
 }: {
   initial: SavedTrip;
   top: number;
+  from?: 'trips' | 'agent';
   onClose: () => void;
   onSaved: (trip: SavedTrip) => void;
 }) {
@@ -116,7 +118,7 @@ export function Trip({
       showsVerticalScrollIndicator={false}
     >
       <Row style={{ paddingHorizontal: 22, justifyContent: 'space-between', alignItems: 'center' }}>
-        <Touch onPress={onClose}><T s="soft" size={14}>← Trips</T></Touch>
+        <Touch onPress={onClose}><T s="soft" size={14}>← {from === 'agent' ? 'Ask' : 'Trips'}</T></Touch>
         {dirty ? (
           <Touch onPress={save} disabled={busy} style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: colors.ink }}>
             <T s="med" size={13} c="#fff">{busy ? 'Saving…' : 'Save'}</T>
