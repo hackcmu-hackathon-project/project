@@ -18,6 +18,7 @@ def get_db() -> AsyncIOMotorDatabase:
 
 async def ensure_indexes() -> None:
     db = get_db()
+    await db.itineraries.create_index([("owner", 1), ("updated_at", -1)])
     await db.items.create_index("city")
     await db.items.create_index([("title", "text"), ("hood", "text")])
     await db.rankings.create_index([("sub", 1), ("item_id", 1)], unique=True)

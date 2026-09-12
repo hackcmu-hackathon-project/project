@@ -52,6 +52,10 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 
 | route | what it does |
 | --- | --- |
+| `POST /api/itineraries/verify` | explicitly request a Gemini review of a draft, without saving |
+| `GET /api/itineraries` | your saved trips |
+| `PUT /api/itineraries/{uuid}` | create or update a trip with revision checks |
+| `POST /api/itineraries/generate` | dates, city, must-tries and pace → personalized daily routes |
 | `GET /api/items?city=&category=&q=` | the catalogue |
 | `POST /api/items` | add a place (sf/nyc only); a photo is resolved for it on the way in |
 | `GET /api/categories` | the fixed category list with counts |
@@ -102,6 +106,70 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 
 Your taste tags on the profile are computed from what you've actually ranked, not
 stored anywhere.
+
+## Plan a trip
+
+Open **Lists → Plan a trip**, choose a city and an inclusive date range (up to 14
+days), then select 1–5 stops per day and walking, driving or cycling. Search the
+catalogue to mark must-tries. The planner prioritizes those, then want-to-go saves,
+then places rated at least 5 by people you follow. Previously ranked places are
+excluded unless explicitly selected. Each stop explains why it was chosen.
+
+Days group stops by neighborhood and open in Google Maps with the same stop order
+(up to three intermediate waypoints, including on mobile browsers). One-stop days
+open directions from your current location. No Maps API key is needed. Places are
+matched by name, neighborhood and city; confirm the match in Maps. This is a
+neighborhood grouping heuristic, not a shortest-path optimizer. Durations cover
+activities only; opening hours, availability and travel times are not verified.
+Choose **Edit & save this itinerary** after generating a plan. Rename it, add or
+remove places, reorder stops, move them between days, change travel mode, and add
+notes for times or reservations. Save it to your account, then reopen it from
+**Lists → Plan & saved trips**. Each day allows up to five stops; Maps follows your
+edited order. Leaving the editor with unsaved changes offers save or discard.
+Concurrent edits are rejected so an older copy cannot overwrite a newer save.
+If picks do not fit, the planner reports overflow, including omitted must-tries.
+
+Run planner tests with `cd backend && .venv/bin/python -m unittest test_itinerary test_saved_itinerary -v`.
+
+## Gemini opening-hours review
+
+Create a key in [Google AI Studio](https://aistudio.google.com/apikey), then add it
+only to `backend/.env`:
+
+```dotenv
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+Restart `npm run api` after changing environment settings. Never put this key in
+an `EXPO_PUBLIC_*` variable or commit it. Google billing/quota applies to generation
+and search grounding. The model can be changed to another Gemini 3 model supporting
+Search plus structured output.
+
+Trip generation always uses the deterministic planner in `itinerary.py` and never
+calls Gemini. After generating a trip, or while editing a saved trip, tap
+**Verify trip** to request Gemini's review. Review appears as a preview: choose
+**Apply suggestions** or **Keep my trip**. Applying suggestions does not save;
+use **Save itinerary** to persist them. Changing the draft invalidates old review
+results. The backend sends selected place names, neighborhoods, dates and durations to
+Google, without account identifiers or friends' names. Gemini searches for venue
+hours, weekday closures, holidays and reservations, then suggests a timed schedule
+with travel buffers. It may suggest moving stops between days or removing unavailable stops with
+an explanation. The response includes sources and Google's Search Suggestions.
+
+These are search-informed suggestions, not guaranteed opening hours, live ticket
+availability or measured travel times. Unknown or conflicting hours require a venue
+check. The server validates dates, catalogue IDs, no repeats, visit durations,
+non-overlapping times and daily stop limits. Missing keys, provider errors,
+un-grounded results or invalid schedules fall back to the original basic plan.
+Review is limited to 20 selected stops and one 75-second request. It reviews the
+selected shortlist, not the entire catalogue. Original timing suggestions copy into
+day notes when editing/saving; manual edits do not automatically rerun the review.
+
+Tests: `cd backend && .venv/bin/python -m unittest test_itinerary test_saved_itinerary test_gemini_planner -v`.
+
+Implementation follows Google's [Search grounding](https://ai.google.dev/gemini-api/docs/generate-content/google-search)
+and [structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output) documentation.
 
 ## Reactions, comments and saves
 

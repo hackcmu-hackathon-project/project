@@ -187,7 +187,39 @@ export type Me = {
   new_user: boolean;
 };
 
+export type ItineraryRequest = {
+  city: CityKey; start_date: string; end_date: string; must_try_ids: number[];
+  use_gemini?: boolean; preferences?: string;
+  stops_per_day: number; travel_mode: 'walking' | 'driving' | 'bicycling';
+};
+export type GeminiReview = {
+  status: 'gemini' | 'fallback'; message: string; checked_at?: string;
+  sources?: { title: string; url: string }[]; search_html?: string;
+  omitted?: { item_id: number; title: string; reason: string }[];
+};
+export type VisitSchedule = { arrival: string; departure: string; travel_minutes: number; hours: string; caution: string };
+export type ItineraryResult = {
+  review?: GeminiReview;
+  days: { date: string; stops: { item: ApiItem; reasons: string[]; schedule?: VisitSchedule }[]; activity_minutes: number; maps_url: string | null }[];
+  unscheduled_count: number; unscheduled_must_try_ids: number[];
+};
+
+export type SavedTrip = {
+  id: string; title: string; city: CityKey; travel_mode: ItineraryRequest['travel_mode'];
+  revision: number; updated_at: string;
+  days: (ItineraryResult['days'][number] & { notes?: string })[];
+};
+export type SaveTrip = {
+  title: string; city: CityKey; travel_mode: ItineraryRequest['travel_mode']; revision: number;
+  days: { date: string; item_ids: number[]; notes: string }[];
+};
+
 export const api = {
+  trips: (token: string | null): Promise<SavedTrip[]> => call('/api/itineraries', token),
+  saveTrip: (token: string | null, id: string, body: SaveTrip): Promise<SavedTrip> =>
+    call(`/api/itineraries/${encodeURIComponent(id)}`, token, { method: 'PUT', body: JSON.stringify(body) }),
+  itinerary: (token: string | null, body: ItineraryRequest): Promise<ItineraryResult> =>
+    call('/api/itineraries/generate', token, { method: 'POST', body: JSON.stringify(body) }),
   health: () => call('/health', null),
   me: (token: string | null): Promise<Me> => call('/api/me', token),
   updateMe: (token: string | null, patch: { name?: string; handle?: string; bio?: string }) =>

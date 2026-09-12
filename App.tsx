@@ -7,10 +7,13 @@ import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-goog
 
 import { colors } from './src/theme';
 import { CityKey } from './src/data';
+import { SavedTrip } from './src/api';
 import { AuthProvider, useAuth } from './src/auth';
 import { StoreProvider, useStore } from './src/store';
 import { TabBar, TabKey } from './src/components/TabBar';
 import { Feed } from './src/screens/Feed';
+import { Trips } from './src/screens/Trips';
+import { Trip } from './src/screens/Trip';
 import { Lists } from './src/screens/Lists';
 import { Explore } from './src/screens/Explore';
 import { Profile } from './src/screens/Profile';
@@ -23,7 +26,9 @@ import { Activity } from './src/screens/Activity';
 import { Person } from './src/screens/Person';
 
 type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number } | { name: 'people' } | { name: 'activity'; owner: string; itemId: number }
-  | { name: 'person'; sub: string };
+  | { name: 'person'; sub: string }
+  | { name: 'trips' }
+  | { name: 'trip'; trip: SavedTrip };
 
 function Shell() {
   const insets = useSafeAreaInsets();
@@ -62,8 +67,19 @@ function Shell() {
         onFindPeople={() => setScreen({ name: 'people' })}
       />
     );
+  } else if (screen.name === 'trips') {
+    body = <Trips top={top} onClose={() => goTab('list')} onOpen={(trip) => setScreen({ name: 'trip', trip })} />;
+  } else if (screen.name === 'trip') {
+    body = (
+      <Trip
+        top={top}
+        initial={screen.trip}
+        onClose={() => setScreen({ name: 'trips' })}
+        onSaved={(trip) => setScreen({ name: 'trip', trip })}
+      />
+    );
   } else if (screen.name === 'list') {
-    body = <Lists top={top} onOpen={openDetail} onRank={(id) => startRank(id)} />;
+    body = <Lists onPlan={() => setScreen({ name: 'trips' })} top={top} onOpen={openDetail} onRank={(id) => startRank(id)} />;
   } else if (screen.name === 'person') {
     body = <Person top={top} sub={screen.sub} onClose={() => goTab(tab)} onOpenActivity={openActivity} />;
   } else if (screen.name === 'activity') {
