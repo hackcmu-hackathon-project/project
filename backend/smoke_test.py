@@ -42,14 +42,30 @@ def main() -> int:
         check("no Food or Drink", not any(x["category"] in ("Food", "Drink") for x in cats))
         search = c.get("/api/items", params={"q": "park"}).json()
         check("GET /api/items?q=park", len(search) > 0, f"got {len(search)}")
+        check("every place can be routed to", all(i.get("lat") for i in items))
+        geo = c.get("/api/geocode", params={"q": "Corona Heights Park", "city": "sf"})
+        check("GET /api/geocode", geo.status_code == 200 and "lat" in geo.json(), geo.text[:60])
+        hoods = c.get("/api/cities/sf/neighborhoods").json()
+        check("GET /api/cities/{city}/neighborhoods", len(hoods) > 10, f"got {len(hoods)}")
+        check("GET /api/items/{id}/photos", isinstance(c.get(f"/api/items/{items[0]['id']}/photos").json(), list))
 
         print("create, rank, unrank")
+        check(
+            "a place with no findable address is refused",
+            c.post(
+                "/api/items",
+                json={"city": "sf", "title": "Smoke test lookout", "hood": "Bernal Heights",
+                      "address": "zzqq nowhere at all 99999", "category": "Outdoors"},
+            ).status_code == 422,
+        )
         created = c.post(
             "/api/items",
-            json={"city": "sf", "title": "Smoke test lookout", "hood": "Bernal Heights", "category": "Outdoors"},
+            json={"city": "sf", "title": "Smoke test lookout", "hood": "Bernal Heights",
+                  "address": "Bernal Heights Park", "category": "Outdoors"},
         )
         check("POST /api/items", created.status_code == 201, created.text[:80])
         new_id = created.json()["id"]
+        check("a created place has coordinates", created.json().get("lat") is not None)
 
         start = c.post("/api/rank/start", json={"item_id": new_id, "tier": "loved"}).json()
         check("POST /api/rank/start", "done" in start, str(start)[:80])

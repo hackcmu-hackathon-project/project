@@ -227,7 +227,7 @@ cd backend && .venv/bin/python smoke_test.py
 
 Exercises every endpoint against a running API as the dev user — catalogue,
 search, creating a place, a full ranking session, saves, follows, reactions,
-comments — and cleans up after itself. 33 checks; it prints what failed.
+comments — and cleans up after itself. 39 checks; it prints what failed.
 
 ## Accounts and following
 
