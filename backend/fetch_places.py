@@ -17,9 +17,10 @@ import asyncio
 import sys
 
 from app.db import close_client, ensure_indexes, get_db
-from neighborhoods import nearest
+from neighborhoods import distance_km, nearest
 from places_source import (
     CITY_POINTS,
+    definition,
     DURATION,
     PRICE,
     classify,
@@ -61,8 +62,12 @@ def collect(city: str, per_city: int) -> list[dict]:
             lat, lon = hit.get("lat"), hit.get("lon")
         if lat is None:
             continue
+        # Geosearch spills past the city line; if nothing we can name is within a
+        # few kilometres, it isn't in the city we're building a catalogue for.
+        if distance_km(city, lat, lon) > 6:
+            continue
         extract = page.get("extract", "")
-        category = classify(f"{page['title']} {extract[:400]}", page["title"]) or "Landmark"
+        category = classify(definition(extract), page["title"]) or "Landmark"
         thumb = (page.get("thumbnail") or {}).get("source")
         out.append(
             {

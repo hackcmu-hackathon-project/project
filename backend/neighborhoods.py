@@ -40,17 +40,31 @@ HOODS: dict[str, list[tuple[str, float, float]]] = {
         ("Long Island City", 40.7447, -73.9485), ("Astoria", 40.7644, -73.9235),
         ("Flushing", 40.7654, -73.8318), ("Jackson Heights", 40.7557, -73.8831),
         ("The Bronx", 40.8448, -73.8648), ("Bronx Park", 40.8506, -73.8770),
+        ("Fordham", 40.8620, -73.8900), ("Riverdale", 40.8900, -73.9120),
+        ("Forest Hills", 40.7190, -73.8450), ("Jamaica", 40.7020, -73.7890),
+        ("Rockaway Beach", 40.5860, -73.8150), ("Bay Ridge", 40.6260, -74.0300),
+        ("Sunset Park", 40.6550, -74.0100), ("Greenpoint", 40.7300, -73.9540),
+        ("Red Hook", 40.6750, -74.0100), ("Sheepshead Bay", 40.5870, -73.9440),
+        ("Flushing Meadows", 40.7400, -73.8400), ("Crown Heights", 40.6700, -73.9440),
         ("Staten Island", 40.5795, -74.1502), ("Roosevelt Island", 40.7610, -73.9500),
         ("Governors Island", 40.6895, -74.0166), ("Queens", 40.7282, -73.7949),
     ],
 }
 
 
-def nearest(city: str, lat: float, lon: float) -> str:
-    """Closest neighborhood centroid, by flat-earth distance (fine at city scale)."""
+def _nearest_pair(city: str, lat: float, lon: float) -> tuple[str, float]:
     scale = math.cos(math.radians(lat))
-    name, _ = min(
-        (((h[0]), (lat - h[1]) ** 2 + ((lon - h[2]) * scale) ** 2) for h in HOODS[city]),
+    return min(
+        ((h[0], (lat - h[1]) ** 2 + ((lon - h[2]) * scale) ** 2) for h in HOODS[city]),
         key=lambda pair: pair[1],
     )
-    return name
+
+
+def distance_km(city: str, lat: float, lon: float) -> float:
+    """How far the point is from the nearest neighborhood we can name."""
+    return math.sqrt(_nearest_pair(city, lat, lon)[1]) * 111.0
+
+
+def nearest(city: str, lat: float, lon: float) -> str:
+    """Closest neighborhood centroid, by flat-earth distance (fine at city scale)."""
+    return _nearest_pair(city, lat, lon)[0]

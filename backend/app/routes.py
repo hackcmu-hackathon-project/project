@@ -404,6 +404,9 @@ async def my_saves(
     ids = await social.saved_ids(db, user.sub)
     if not ids:
         return []
+    # Want-to-go never includes somewhere you've been, whatever the saves say.
+    ranked = {r["item_id"] for r in await db.rankings.find({"sub": user.sub}, {"item_id": 1}).to_list(1000)}
+    ids = [i for i in ids if i not in ranked]
     docs = await db.items.find({"id": {"$in": ids}}, {"_id": 0}).to_list(500)
     by_id = {d["id"]: d for d in docs}
     return [Item(**by_id[i]) for i in ids if i in by_id]
