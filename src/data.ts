@@ -7,7 +7,7 @@
  */
 import { CATEGORIES, Tier } from './theme';
 
-export type CityKey = 'sf' | 'nyc';
+export type CityKey = 'sf' | 'nyc' | 'pgh';
 export type Category = (typeof CATEGORIES)[number];
 
 export type Item = {
@@ -39,8 +39,12 @@ export type Item = {
 
 export const CITIES: Record<CityKey, string> = {
   "sf": "San Francisco",
-  "nyc": "New York"
+  "nyc": "New York",
+  "pgh": "Pittsburgh"
 };
+
+/** Every city, in the order the app shows them. */
+export const CITY_KEYS = Object.keys(CITIES) as CityKey[];
 
 /** Nothing here is ranked: scores belong to a person, and people live in the database. */
 const CURATED = [
