@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import gemini_planner, itinerary, people, photos, ranking, social, uploads
+from . import agent, gemini_planner, itinerary, people, photos, ranking, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -693,6 +693,21 @@ async def feed(
             )
 
     return entries[:limit]
+
+
+@router.post("/agent/chat")
+async def agent_chat(
+    body: agent.ChatRequest,
+    user: Principal = Depends(current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Ask the assistant. Its tools act as you, against your own data."""
+    await _touch_user(db, user)
+    result = await agent.run(db, user.sub, body)
+    return {
+        **result,
+        "places": [Item(**p) for p in result.get("places", [])],
+    }
 
 
 @router.post("/itineraries/generate")

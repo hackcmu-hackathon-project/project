@@ -100,6 +100,7 @@ and add that origin to `CORS_ORIGINS` in `backend/.env`.
 | **Feed** | Rankings from the people you follow, or everyone. React with an emoji, save a place, or open a take to comment. |
 | **Lists** | Your ranked list per city, and your want-to-go list. |
 | **＋** | Search the catalogue, or add a place that isn't in it (in either city), then rank it. |
+| **Ask** | An assistant that answers in plain language, using the catalogue, your lists and the people you follow — and can save places or build you a trip. |
 | **Explore** | Search and filter the whole catalogue, browse by category and neighborhood. |
 | **You** | Edit your name, @handle and bio; see your circle; find people. |
 | **A place** | Your score and rank, how the people you follow scored it, the tip, the source, and a way to re-rank or drop it. |
@@ -170,6 +171,28 @@ Tests: `cd backend && .venv/bin/python -m unittest test_itinerary test_saved_iti
 
 Implementation follows Google's [Search grounding](https://ai.google.dev/gemini-api/docs/generate-content/google-search)
 and [structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output) documentation.
+
+## The assistant
+
+**Ask** is Gemini with tools, not a chatbot bolted on. It has five, and they run
+server-side as the caller — the model asks, it never says who it is:
+
+| tool | does |
+| --- | --- |
+| `search_places` | catalogue search by text, category, price |
+| `my_list` | what you've ranked, or what you want to go to |
+| `friends_picks` | what the people you follow rated 8+, and who |
+| `save_place` | adds to your want-to-go list |
+| `create_trip` | builds and saves an itinerary through the same planner the Trips tab uses |
+
+The loop runs at most six model turns, tool results are trimmed to what the model
+needs, and it can only mention places that came back from a tool. Writes happen
+only when you asked for them in the conversation, and the reply says what changed.
+`POST /api/agent/chat` is stateless: the app sends the transcript each time.
+
+Set `GEMINI_API_KEY` in `backend/.env.local` (gitignored) and `GEMINI_MODEL` in
+`backend/.env`. On the free tier expect 429s — the client retries a few times and
+then says so plainly rather than failing silently.
 
 ## Reactions, comments and saves
 

@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from './src/auth';
 import { StoreProvider, useStore } from './src/store';
 import { TabBar, TabKey } from './src/components/TabBar';
 import { Feed } from './src/screens/Feed';
+import { Agent } from './src/screens/Agent';
 import { Trips } from './src/screens/Trips';
 import { Trip } from './src/screens/Trip';
 import { Lists } from './src/screens/Lists';
@@ -97,6 +98,14 @@ function Shell() {
   } else if (screen.name === 'people') {
     // Following someone changes the feed, so re-pull on the way out.
     body = <People top={top} onClose={() => { refresh(); goTab('profile'); }} onOpenPerson={openPerson} />;
+  } else if (screen.name === 'agent') {
+    body = (
+      <Agent
+        top={top}
+        onOpenItem={openDetail}
+        onOpenTrip={(trip) => setScreen({ name: 'trip', trip })}
+      />
+    );
   } else if (screen.name === 'explore') {
     body = <Explore top={top} onOpen={openDetail} />;
   } else {
