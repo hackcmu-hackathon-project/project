@@ -29,7 +29,13 @@ def maps_url(items: list[dict], city: str, mode: str) -> str | None:
     if not items:
         return None
     city_name = CITY_NAMES[city]
-    places = [f'{i["title"]}, {i["hood"]}, {city_name}' for i in items]
+    # Coordinates when we have them: a place somebody added by hand may not be
+    # findable by name, and an imported one is pinned exactly.
+    places = [
+        f'{i["lat"]},{i["lon"]}' if i.get("lat") and i.get("lon")
+        else f'{i["title"]}, {i["hood"]}, {city_name}'
+        for i in items
+    ]
     params = {"api": "1", "destination": places[-1], "travelmode": mode}
     if len(places) > 1:
         params["origin"] = places[0]

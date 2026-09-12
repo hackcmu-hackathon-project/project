@@ -50,6 +50,7 @@ type Ctx = {
     city: CityKey;
     title: string;
     hood: string;
+    address?: string;
     category: string;
     note?: string;
     tip?: string;
@@ -282,6 +283,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       city: CityKey;
       title: string;
       hood: string;
+      address?: string;
       category: string;
       note?: string;
       tip?: string;

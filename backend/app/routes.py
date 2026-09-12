@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from . import agent, ranking_photos, gemini_planner, itinerary, people, photos, ranking, social, uploads
+from . import agent, geocode, gemini_planner, itinerary, people, photos, ranking, ranking_photos, social, uploads
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
@@ -211,6 +211,14 @@ async def cities(db: AsyncIOMotorDatabase = Depends(get_db)):
     return out
 
 
+@router.get("/cities/{city}/neighborhoods")
+async def city_neighborhoods(city: City):
+    """The neighborhoods we can label a place with, so nobody has to guess."""
+    from neighborhoods import HOODS
+
+    return sorted(name for name, _, _ in HOODS.get(city, []))
+
+
 @router.get("/categories")
 async def categories(city: City | None = None, db: AsyncIOMotorDatabase = Depends(get_db)):
     """The fixed category list, with how many things each holds."""
@@ -297,6 +305,13 @@ async def create_item(
         "created_by": user.sub,
         "created_at": _now(),
     }
+    # An address is worth coordinates: it makes the Maps route land on the spot
+    # rather than on a name search.
+    if doc.get("address"):
+        found = await geocode.locate(doc["address"], doc["city"])
+        if found:
+            doc["lat"], doc["lon"] = found
+
     photo = await photos.find_photo(photos.photo_query_for(doc))
     if photo:
         doc.update(photo)

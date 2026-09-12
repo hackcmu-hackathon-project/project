@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 import { CATEGORIES, colors, font, radius, scoreColors, fmtScore, TIERS, TIER_ORDER, Tier } from '../theme';
 import { CITIES, CityKey, meta } from '../data';
@@ -20,15 +20,18 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [q, setQ] = useState('');
+  const [hoods, setHoods] = useState<string[]>([]);
+  const [hoodOpen, setHoodOpen] = useState(false);
   const [draft, setDraft] = useState<{
     title: string;
     hood: string;
+    address: string;
     category: string;
     note: string;
     tip: string;
     bestTime: string;
     city: CityKey;
-  }>({ title: '', hood: '', category: 'Outdoors', note: '', tip: '', bestTime: '', city });
+  }>({ title: '', hood: '', address: '', category: 'Outdoors', note: '', tip: '', bestTime: '', city });
   const [picked, setPicked] = useState<PickedPhoto[]>([]);
   const [selectedTier, setSelectedTier] = useState<Tier | null>(null);
   const [uploaded, setUploaded] = useState(false);
@@ -75,6 +78,18 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
         .slice(0, 40),
     [wants, city, q]
   );
+
+  useEffect(() => {
+    if (step !== 'new') return;
+    let alive = true;
+    api
+      .neighborhoods(token, draft.city)
+      .then((rows) => alive && setHoods(rows))
+      .catch(() => alive && setHoods([]));
+    return () => {
+      alive = false;
+    };
+  }, [step, draft.city, token]);
 
   const advance = async (run: () => Promise<RankState>) => {
     setBusy(true);
@@ -153,9 +168,16 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   // ---------- Add a place ----------
   if (step === 'new') {
     const ready = draft.title.trim().length > 2 && draft.hood.trim().length > 1;
+    const missing = !draft.title.trim().length
+      ? 'Give it a name'
+      : draft.title.trim().length <= 2
+        ? 'That name is a bit short'
+        : !draft.hood
+          ? 'Pick a neighborhood'
+          : '';
     const field = (
       label: string,
-      key: 'title' | 'hood' | 'note' | 'tip' | 'bestTime',
+      key: 'title' | 'hood' | 'address' | 'note' | 'tip' | 'bestTime',
       placeholder: string,
       multiline = false
     ) => (
@@ -184,10 +206,57 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           {photoEditor}
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Which city</Eyebrow>
           <View style={{ marginBottom: 16 }}>
-            <CityChips city={draft.city} onChange={(c) => setDraft((d) => ({ ...d, city: c }))} />
+            <CityChips city={draft.city} onChange={(c) => setDraft((d) => ({ ...d, city: c, hood: '' }))} />
           </View>
           {field('What is it', 'title', 'Sunrise from the overlook')}
-          {field('Neighborhood', 'hood', 'Which part of town')}
+          <Eyebrow style={{ fontSize: 11, marginBottom: 6 }}>Neighborhood</Eyebrow>
+          <Touch
+            onPress={() => setHoodOpen((open) => !open)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 14,
+              paddingVertical: 13,
+              borderRadius: radius.md,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.line,
+              marginBottom: hoodOpen ? 8 : 14,
+            }}
+          >
+            <T size={15} c={draft.hood ? colors.ink : colors.faint} style={{ flex: 1 }}>
+              {draft.hood || 'Choose a neighborhood'}
+            </T>
+            <T size={12} c={colors.faint}>{hoodOpen ? '▲' : '▼'}</T>
+          </Touch>
+          {hoodOpen ? (
+            <View
+              style={{
+                maxHeight: 220,
+                marginBottom: 14,
+                borderRadius: radius.md,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.line,
+              }}
+            >
+              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                {hoods.map((name) => (
+                  <Touch
+                    key={name}
+                    onPress={() => { setDraft((d) => ({ ...d, hood: name })); setHoodOpen(false); }}
+                    style={{ paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.hair }}
+                  >
+                    <T size={14.5} c={draft.hood === name ? colors.plum : colors.ink}>{name}</T>
+                  </Touch>
+                ))}
+                {!hoods.length ? (
+                  <T s="soft" size={13} style={{ padding: 14 }}>Couldn’t load neighborhoods.</T>
+                ) : null}
+              </ScrollView>
+            </View>
+          ) : null}
+          {field('Address or cross streets (optional)', 'address', '18th & Dolores')}
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Kind of thing</Eyebrow>
           <Row style={{ flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
             {CATEGORIES.map((c) => (
@@ -221,6 +290,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                   city: draft.city,
                   title: draft.title.trim(),
                   hood: draft.hood.trim(),
+                  address: draft.address.trim(),
                   category: draft.category,
                   note: draft.note.trim(),
                   tip: draft.tip.trim(),
@@ -240,6 +310,9 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           >
             <T s="med" size={15} c={ready ? '#fff' : colors.faint}>{busy ? 'Adding…' : 'Add it, then rank it'}</T>
           </Touch>
+          {!ready && missing ? (
+            <T s="soft" size={12.5} style={{ textAlign: 'center', paddingTop: 8, color: colors.faint }}>{missing}</T>
+          ) : null}
           <Touch onPress={() => setStep('pick')} style={{ padding: 16, alignItems: 'center' }}>
             <T s="soft" size={14}>Back to search</T>
           </Touch>
@@ -250,13 +323,19 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
 
   // ---------- Tier ----------
   if (step === 'tier' && newItem) {
+    // Deliberately not a ScrollView: this is one decision and it should sit on
+    // one screen. The note and photos come after the score, on the result step.
+    // The bottom padding clears the floating tab bar.
     return (
-      <ScrollView contentContainerStyle={{ paddingTop: top + 8, paddingBottom: 130 }}>
+      <View style={{ flex: 1, paddingTop: top + 8, paddingBottom: 110 }}>
         <T s="soft" size={13} style={{ paddingHorizontal: 22 }}>Ranking</T>
-        <T s="serif" size={30} style={{ paddingHorizontal: 22, paddingTop: 2, paddingBottom: 28, lineHeight: 33 }}>{newItem.title}</T>
-        <Photo uri={newItem.photo} label={newItem.title} radius={18} style={{ height: 160, marginHorizontal: 22, marginBottom: 16 }} />
-        <T s="serif" size={24} style={{ paddingHorizontal: 22, paddingBottom: 6 }}>{me?.name?.split(' ')[0] ? `${me.name.split(' ')[0]}, how did it feel?` : 'How did it feel to be there?'}</T>
-        <T s="soft" size={13} style={{ paddingHorizontal: 22, paddingBottom: 16 }}>Start with your gut. Then we’ll find its place among your own favorites.</T>
+        <T s="serif" size={26} numberOfLines={2} style={{ paddingHorizontal: 22, paddingTop: 2, lineHeight: 29 }}>
+          {newItem.title}
+        </T>
+        <T s="serif" size={22} style={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 12 }}>
+          {me?.name?.split(' ')[0] ? `${me.name.split(' ')[0]}, how did it feel?` : 'How did it feel?'}
+        </T>
+
         <View style={{ paddingHorizontal: 22, gap: 10 }}>
           {TIER_ORDER.map((t) => {
             const bg = t === 'loved' ? colors.plum : t === 'liked' ? colors.gold : colors.chip;
@@ -266,31 +345,50 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                 key={t}
                 onPress={() => !busy && setSelectedTier(t)}
                 accessibilityState={{ selected: selectedTier === t }}
-                style={{ padding: 20, borderRadius: radius.xl, backgroundColor: bg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', opacity: busy ? 0.6 : 1, borderWidth: 3, borderColor: selectedTier === t ? colors.ink : 'transparent' }}
+                style={{
+                  paddingVertical: 16,
+                  paddingHorizontal: 18,
+                  borderRadius: radius.xl,
+                  backgroundColor: bg,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  opacity: busy ? 0.6 : 1,
+                  borderWidth: 3,
+                  borderColor: selectedTier === t ? colors.ink : 'transparent',
+                }}
               >
                 <T s="med" size={17} c={fg}>{TIERS[t].label}</T>
-                <T size={13} c={fg} style={{ opacity: 0.75 }}>{{ loved: 'I’d tell a friend to go', liked: 'Glad I made the time', okay: 'Not quite my thing' }[t]}</T>
+                <T size={13} c={fg} style={{ opacity: 0.75 }}>
+                  {{ loved: 'I’d tell a friend to go', liked: 'Glad I made the time', okay: 'Not quite my thing' }[t]}
+                </T>
               </Touch>
             );
           })}
         </View>
-        <View style={{ padding: 22, gap: 12 }}>
-          <T s="med" size={14}>What will you remember?</T>
-          <TextInput value={note} onChangeText={setNote} multiline maxLength={2000}
-            placeholder="The view, who you went with, a moment worth keeping…"
-            placeholderTextColor={colors.faint}
-            style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, minHeight: 90, fontFamily: font.body, color: colors.ink }} />
-          {photoEditor}
-          <Touch disabled={busy || !selectedTier} onPress={() => selectedTier && chooseTier(selectedTier)}
-            style={{ padding: 16, borderRadius: radius.pill, backgroundColor: selectedTier ? colors.ink : colors.chip, alignItems: 'center' }}>
-            <T c={selectedTier ? '#fff' : colors.faint} s="med">{busy ? 'Finding its place…' : 'Find my ranking →'}</T>
+
+        {error ? <T s="soft" size={12} c={colors.plum} style={{ paddingHorizontal: 22, paddingTop: 12 }}>{error}</T> : null}
+
+        <View style={{ marginTop: 'auto', paddingHorizontal: 22, gap: 4 }}>
+          <Touch
+            disabled={busy || !selectedTier}
+            onPress={() => selectedTier && chooseTier(selectedTier)}
+            style={{
+              padding: 16,
+              borderRadius: radius.pill,
+              backgroundColor: selectedTier ? colors.ink : colors.chip,
+              alignItems: 'center',
+            }}
+          >
+            <T c={selectedTier ? '#fff' : colors.faint} s="med">
+              {busy ? 'Finding its place…' : 'Find my ranking →'}
+            </T>
+          </Touch>
+          <Touch onPress={onFinish} style={{ padding: 14, alignItems: 'center' }}>
+            <T s="soft" size={14}>Cancel</T>
           </Touch>
         </View>
-        {error ? <T s="soft" size={12} c={colors.plum} style={{ padding: 22 }}>{error}</T> : null}
-        <Touch onPress={onFinish} style={{ marginTop: 'auto', padding: 20, alignItems: 'center' }}>
-          <T s="soft" size={14}>Cancel</T>
-        </Touch>
-      </ScrollView>
+      </View>
     );
   }
 

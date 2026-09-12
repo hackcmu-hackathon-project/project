@@ -301,9 +301,22 @@ export const api = {
   },
   createItem: async (
     token: string | null,
-    body: { city: string; title: string; hood: string; category: string; duration_min?: number; price?: number; note?: string; tip?: string; best_time?: string }
+    body: {
+      city: string;
+      title: string;
+      hood: string;
+      address?: string;
+      category: string;
+      duration_min?: number;
+      price?: number;
+      note?: string;
+      tip?: string;
+      best_time?: string;
+    }
   ): Promise<Item> => toItem(await call('/api/items', token, { method: 'POST', body: JSON.stringify(body) })),
   myActivity: (token: string | null): Promise<MyActivity[]> => call('/api/activity/mine', token),
+  neighborhoods: (token: string | null, city: string): Promise<string[]> =>
+    call(`/api/cities/${city}/neighborhoods`, token),
   itemPhotos: (token: string | null, itemId: number): Promise<PlacePhoto[]> =>
     call(`/api/items/${itemId}/photos`, token).then((rows: PlacePhoto[]) =>
       rows.map((p) => ({ ...p, url: absolute(p.url)! }))

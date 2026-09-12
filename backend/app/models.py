@@ -34,6 +34,10 @@ class Item(BaseModel):
     note: str = ""
     tip: str = ""
     tags: list[str] = Field(default_factory=list)
+    #: Free text for places added by hand — "18th & Dolores", a street address.
+    address: str = ""
+    lat: float | None = None
+    lon: float | None = None
     img: str = "photo"
     # Resolved once from Openverse; see app/photos.py.
     photo_url: str | None = None
@@ -49,8 +53,9 @@ class Item(BaseModel):
 
 class ItemCreate(BaseModel):
     city: City
-    title: str
-    hood: str
+    title: str = Field(min_length=3, max_length=120)
+    hood: str = Field(min_length=2, max_length=80)
+    address: str = Field("", max_length=200)
     category: Category = "Culture"
     duration_min: int = 60
     price: int = Field(0, ge=0, le=3)
