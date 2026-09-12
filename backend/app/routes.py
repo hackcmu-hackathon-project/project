@@ -320,9 +320,11 @@ async def create_item(
         "created_by": user.sub,
         "created_at": _now(),
     }
-    # A place nobody can route to is barely a place. Insist on an address and
-    # insist it resolves, rather than storing something a trip can't use.
-    found = await geocode.locate(doc.get("address", ""), doc["city"])
+    # A place nobody can route to is barely a place. Trust the point the app
+    # showed on the map — someone may have dragged the pin to correct it — and
+    # only geocode when it didn't send one.
+    found = (doc["lat"], doc["lon"]) if doc.get("lat") and doc.get("lon") else None
+    found = found or await geocode.locate(doc.get("address", ""), doc["city"])
     if not found:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -330,6 +332,12 @@ async def create_item(
             "Try a street address or a nearby cross street.",
         )
     doc["lat"], doc["lon"] = found
+
+    # The neighborhood follows from where it is, so nobody has to pick one.
+    if not doc.get("hood"):
+        from neighborhoods import nearest
+
+        doc["hood"] = nearest(doc["city"], doc["lat"], doc["lon"])
 
     photo = await photos.find_photo(photos.photo_query_for(doc))
     if photo:

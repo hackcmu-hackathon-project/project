@@ -21,20 +21,17 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [q, setQ] = useState('');
-  const [hoods, setHoods] = useState<string[]>([]);
-  const [hoodOpen, setHoodOpen] = useState(false);
   const [located, setLocated] = useState<{ lat: number; lon: number; label: string } | null>(null);
   const [locating, setLocating] = useState(false);
   const [hints, setHints] = useState<{ label: string; lat: number; lon: number }[]>([]);
   const [draft, setDraft] = useState<{
     title: string;
-    hood: string;
     address: string;
     category: string;
     note: string;
     bestTime: string;
     city: CityKey;
-  }>({ title: '', hood: '', address: '', category: 'Outdoors', note: '', bestTime: '', city });
+  }>({ title: '', address: '', category: 'Outdoors', note: '', bestTime: '', city });
   const [picked, setPicked] = useState<PickedPhoto[]>([]);
   const [selectedTier, setSelectedTier] = useState<Tier | null>(null);
   const [uploaded, setUploaded] = useState(false);
@@ -81,18 +78,6 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
         .slice(0, 40),
     [wants, city, q]
   );
-
-  useEffect(() => {
-    if (step !== 'new') return;
-    let alive = true;
-    api
-      .neighborhoods(token, draft.city)
-      .then((rows) => alive && setHoods(rows))
-      .catch(() => alive && setHoods([]));
-    return () => {
-      alive = false;
-    };
-  }, [step, draft.city, token]);
 
   useEffect(() => {
     const address = draft.address.trim();
@@ -192,15 +177,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
 
   // ---------- Add a place ----------
   if (step === 'new') {
-    const ready =
-      draft.title.trim().length > 2 && draft.hood.trim().length > 1 && Boolean(located);
+    const ready = draft.title.trim().length > 2 && Boolean(located);
     const missing = !draft.title.trim().length
       ? 'Give it a name'
       : draft.title.trim().length <= 2
         ? 'That name is a bit short'
-        : !draft.hood
-          ? 'Pick a neighborhood'
-          : draft.address.trim().length <= 2
+        : draft.address.trim().length <= 2
             ? 'Search for where it is'
             : locating
               ? 'Checking that address…'
@@ -209,7 +191,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                 : '';
     const field = (
       label: string,
-      key: 'title' | 'hood' | 'address' | 'note' | 'bestTime',
+      key: 'title' | 'address' | 'note' | 'bestTime',
       placeholder: string,
       multiline = false
     ) => (
@@ -235,56 +217,12 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           {photoEditor}
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Which city</Eyebrow>
           <View style={{ marginBottom: 16 }}>
-            <CityChips city={draft.city} onChange={(c) => setDraft((d) => ({ ...d, city: c, hood: '' }))} />
+            <CityChips
+              city={draft.city}
+              onChange={(c) => { setDraft((d) => ({ ...d, city: c, address: '' })); setLocated(null); }}
+            />
           </View>
           {field('What is it', 'title', 'Sunrise from the overlook')}
-          <Eyebrow style={{ fontSize: 11, marginBottom: 6 }}>Neighborhood</Eyebrow>
-          <Touch
-            onPress={() => setHoodOpen((open) => !open)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 14,
-              paddingVertical: 13,
-              borderRadius: radius.md,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.line,
-              marginBottom: hoodOpen ? 8 : 14,
-            }}
-          >
-            <T size={15} c={draft.hood ? colors.ink : colors.faint} style={{ flex: 1 }}>
-              {draft.hood || 'Choose a neighborhood'}
-            </T>
-            <T size={12} c={colors.faint}>{hoodOpen ? '▲' : '▼'}</T>
-          </Touch>
-          {hoodOpen ? (
-            <View
-              style={{
-                maxHeight: 220,
-                marginBottom: 14,
-                borderRadius: radius.md,
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.line,
-              }}
-            >
-              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                {hoods.map((name) => (
-                  <Touch
-                    key={name}
-                    onPress={() => { setDraft((d) => ({ ...d, hood: name })); setHoodOpen(false); }}
-                    style={{ paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.hair }}
-                  >
-                    <T size={14.5} c={draft.hood === name ? colors.plum : colors.ink}>{name}</T>
-                  </Touch>
-                ))}
-                {!hoods.length ? (
-                  <T s="soft" size={13} style={{ padding: 14 }}>Couldn’t load neighborhoods.</T>
-                ) : null}
-              </ScrollView>
-            </View>
-          ) : null}
           {field('Where is it', 'address', 'Search a place or address')}
           <View style={{ marginTop: -8, marginBottom: 14, gap: 8 }}>
             {hints.length ? (
@@ -354,7 +292,6 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                 const created = await createItem({
                   city: draft.city,
                   title: draft.title.trim(),
-                  hood: draft.hood.trim(),
                   address: draft.address.trim(),
                   lat: located?.lat,
                   lon: located?.lon,

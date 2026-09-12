@@ -49,7 +49,6 @@ type Ctx = {
   createItem: (body: {
     city: CityKey;
     title: string;
-    hood: string;
     address?: string;
     lat?: number;
     lon?: number;
@@ -284,7 +283,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     async (body: {
       city: CityKey;
       title: string;
-      hood: string;
       address?: string;
       lat?: number;
       lon?: number;

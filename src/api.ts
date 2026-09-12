@@ -304,7 +304,6 @@ export const api = {
     body: {
       city: string;
       title: string;
-      hood: string;
       address?: string;
       lat?: number;
       lon?: number;

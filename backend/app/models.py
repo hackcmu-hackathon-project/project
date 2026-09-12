@@ -54,9 +54,13 @@ class Item(BaseModel):
 class ItemCreate(BaseModel):
     city: City
     title: str = Field(min_length=3, max_length=120)
-    hood: str = Field(min_length=2, max_length=80)
+    #: Optional: worked out from the coordinates when it isn't given.
+    hood: str = Field("", max_length=80)
     #: Required: it's how a trip routes to the place.
     address: str = Field(min_length=3, max_length=200)
+    #: Sent when the app has already pinned it on the map, including after a drag.
+    lat: float | None = None
+    lon: float | None = None
     category: Category = "Culture"
     duration_min: int = 60
     price: int = Field(0, ge=0, le=3)
