@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 import { colors, font, radius, fmtScore, scoreColors } from '../theme';
 import { CITIES, meta } from '../data';
-import { Activity as ActivityData, api, toItem } from '../api';
+import { Activity as ActivityData, api, toItem, absolute } from '../api';
 import { Eyebrow, Initials, Photo, Row, T, Touch } from '../components/ui';
 import { ReactionBar } from '../components/Reactions';
 import { useAuth } from '../auth';
@@ -142,6 +142,11 @@ export function Activity({
         ) : null}
       </Touch>
 
+      {data.photo_urls?.length ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 22, gap: 10 }}>
+          {data.photo_urls.map((uri, i) => <Photo key={uri} uri={absolute(uri)} label={`Memory ${i + 1}`} radius={12} style={{ width: 240, height: 200 }} />)}
+        </ScrollView>
+      ) : null}
       {data.note ? (
         <T size={15} c={colors.ink2} style={{ paddingHorizontal: 22, paddingTop: 14, lineHeight: 22 }}>
           “{data.note}”
