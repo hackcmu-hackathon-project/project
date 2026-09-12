@@ -20,8 +20,21 @@ VIEWBOX = {
 }
 
 
+async def describe(address: str, city: str) -> dict | None:
+    """Like locate(), but also returns what OpenStreetMap thinks it found."""
+    hit = await _search(address, city)
+    if not hit:
+        return None
+    return {"lat": hit[0], "lon": hit[1], "label": hit[2]}
+
+
 async def locate(address: str, city: str) -> tuple[float, float] | None:
     """Coordinates for a free-text address, or None if it can't be placed."""
+    hit = await _search(address, city)
+    return (hit[0], hit[1]) if hit else None
+
+
+async def _search(address: str, city: str) -> tuple[float, float, str] | None:
     address = address.strip()
     if not address:
         return None
@@ -54,7 +67,7 @@ async def locate(address: str, city: str) -> tuple[float, float] | None:
             except (KeyError, TypeError, ValueError):
                 continue
             if _inside(city, lat, lon):
-                return lat, lon
+                return lat, lon, hits[0].get("display_name", address)
     return None
 
 

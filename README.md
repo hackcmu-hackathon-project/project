@@ -269,8 +269,9 @@ and the rest imported.
   and license travel with the URL and are shown on the detail screen.
 * Anything missing, you add in the app: **＋ → Add a new place** writes to the
   catalogue for everyone. It asks for a neighborhood from a list and an address,
-  which it geocodes through OpenStreetMap — a place that can't be found on a map
-  is refused rather than saved as something no trip can route to and resolves a photo on the way in — or you pick your
+  which it geocodes through OpenStreetMap and shows on a small map as you type,
+  so you can see where it landed. A place that can't be found on a map is
+  refused rather than saved as something no trip can route to and resolves a photo on the way in — or you pick your
   own from the camera roll, which is also how you replace a bad photo on any
   existing place (**a place → Use your own photo instead**).
 

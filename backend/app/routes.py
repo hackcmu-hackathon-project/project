@@ -211,6 +211,15 @@ async def cities(db: AsyncIOMotorDatabase = Depends(get_db)):
     return out
 
 
+@router.get("/geocode")
+async def geocode_address(q: str, city: City):
+    """Where an address lands, so the form can show it on a map before saving."""
+    found = await geocode.describe(q, city)
+    if not found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No match in {CITY_NAMES[city]}")
+    return found
+
+
 @router.get("/cities/{city}/neighborhoods")
 async def city_neighborhoods(city: City):
     """The neighborhoods we can label a place with, so nobody has to guess."""

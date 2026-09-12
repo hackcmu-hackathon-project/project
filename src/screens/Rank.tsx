@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
 import { CATEGORIES, colors, font, radius, scoreColors, fmtScore, TIERS, TIER_ORDER, Tier } from '../theme';
 import { CITIES, CityKey, meta } from '../data';
 import { RankState, api } from '../api';
 import { useAuth } from '../auth';
 import { CityChips, Eyebrow, Photo, Row, T, Touch } from '../components/ui';
+import { MiniMap } from '../components/MiniMap';
 import { PickedPhoto, pickPhotos } from '../photoPicker';
 import { useStore } from '../store';
 
@@ -22,16 +23,18 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   const [q, setQ] = useState('');
   const [hoods, setHoods] = useState<string[]>([]);
   const [hoodOpen, setHoodOpen] = useState(false);
+  const [located, setLocated] = useState<{ lat: number; lon: number; label: string } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const { width } = useWindowDimensions();
   const [draft, setDraft] = useState<{
     title: string;
     hood: string;
     address: string;
     category: string;
     note: string;
-    tip: string;
     bestTime: string;
     city: CityKey;
-  }>({ title: '', hood: '', address: '', category: 'Outdoors', note: '', tip: '', bestTime: '', city });
+  }>({ title: '', hood: '', address: '', category: 'Outdoors', note: '', bestTime: '', city });
   const [picked, setPicked] = useState<PickedPhoto[]>([]);
   const [selectedTier, setSelectedTier] = useState<Tier | null>(null);
   const [uploaded, setUploaded] = useState(false);
@@ -90,6 +93,27 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
       alive = false;
     };
   }, [step, draft.city, token]);
+
+  useEffect(() => {
+    const address = draft.address.trim();
+    if (step !== 'new' || address.length < 3) {
+      setLocated(null);
+      return;
+    }
+    let alive = true;
+    setLocating(true);
+    const timer = setTimeout(() => {
+      api
+        .geocode(token, address, draft.city)
+        .then((found) => alive && setLocated(found))
+        .catch(() => alive && setLocated(null))
+        .finally(() => alive && setLocating(false));
+    }, 700);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [draft.address, draft.city, step, token]);
 
   const advance = async (run: () => Promise<RankState>) => {
     setBusy(true);
@@ -168,7 +192,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
   // ---------- Add a place ----------
   if (step === 'new') {
     const ready =
-      draft.title.trim().length > 2 && draft.hood.trim().length > 1 && draft.address.trim().length > 2;
+      draft.title.trim().length > 2 && draft.hood.trim().length > 1 && Boolean(located);
     const missing = !draft.title.trim().length
       ? 'Give it a name'
       : draft.title.trim().length <= 2
@@ -177,10 +201,14 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
           ? 'Pick a neighborhood'
           : draft.address.trim().length <= 2
             ? 'Add an address or cross streets'
-            : '';
+            : locating
+              ? 'Checking that address…'
+              : !located
+                ? 'That address didn’t land anywhere on the map'
+                : '';
     const field = (
       label: string,
-      key: 'title' | 'hood' | 'address' | 'note' | 'tip' | 'bestTime',
+      key: 'title' | 'hood' | 'address' | 'note' | 'bestTime',
       placeholder: string,
       multiline = false
     ) => (
@@ -202,9 +230,6 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
     return (
       <ScrollView contentContainerStyle={{ paddingTop: top + 8, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
         <T s="serif" size={34} style={{ paddingHorizontal: 22 }}>Add a place</T>
-        <T s="soft" size={14} style={{ paddingHorizontal: 22, paddingTop: 4, paddingBottom: 20 }}>
-          It joins the catalogue for everyone, and we’ll find a photo for it.
-        </T>
         <View style={{ paddingHorizontal: 22 }}>
           {photoEditor}
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Which city</Eyebrow>
@@ -260,9 +285,24 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
             </View>
           ) : null}
           {field('Address or cross streets', 'address', '18th & Dolores')}
-          <T s="soft" size={12} style={{ marginTop: -8, marginBottom: 14, color: colors.faint, lineHeight: 17 }}>
-            This is how trips route to it, so it has to be somewhere a map can find.
-          </T>
+          <View style={{ marginTop: -8, marginBottom: 14, gap: 6 }}>
+            {located ? (
+              <>
+                <MiniMap lat={located.lat} lon={located.lon} width={width - 44} />
+                <T s="soft" size={12} numberOfLines={2} style={{ color: colors.faint, lineHeight: 17 }}>
+                  {located.label}
+                </T>
+              </>
+            ) : (
+              <T s="soft" size={12} style={{ color: colors.faint, lineHeight: 17 }}>
+                {locating
+                  ? 'Looking it up…'
+                  : draft.address.trim().length > 2
+                    ? 'No match yet — try a street address or a nearby cross street.'
+                    : 'This is how trips route to it, so it has to be somewhere a map can find.'}
+              </T>
+            )}
+          </View>
           <Eyebrow style={{ fontSize: 11, marginBottom: 8 }}>Kind of thing</Eyebrow>
           <Row style={{ flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
             {CATEGORIES.map((c) => (
@@ -282,8 +322,7 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
               </Touch>
             ))}
           </Row>
-          {field('Why it’s worth doing', 'note', 'One or two lines for whoever finds it next.', true)}
-          {field('The move (optional)', 'tip', 'The thing you’d tell a friend before they go.')}
+          {field('Why it’s worth doing (optional)', 'note', 'One or two lines for whoever finds it next.', true)}
           {field('Best time (optional)', 'bestTime', 'Weekday mornings')}
           {error ? <T s="soft" size={12.5} c={colors.plum} style={{ marginBottom: 10 }}>{error}</T> : null}
           <Touch
@@ -299,7 +338,6 @@ export function Rank({ top, seedId, onFinish }: { top: number; seedId?: number; 
                   address: draft.address.trim(),
                   category: draft.category,
                   note: draft.note.trim(),
-                  tip: draft.tip.trim(),
                   best_time: draft.bestTime.trim(),
                 });
                 // Rank it in the city it was added to, not the one you were browsing.
