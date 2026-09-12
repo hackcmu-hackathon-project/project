@@ -334,10 +334,16 @@ async def create_item(
     doc["lat"], doc["lon"] = found
 
     # The neighborhood follows from where it is, so nobody has to pick one.
+    # Ask OpenStreetMap what the area is actually called rather than measuring
+    # to our own centroids: Grove Street is 2km from Battery Park and on the
+    # other side of the Hudson. Fall back to the nearest centroid if it can't say.
     if not doc.get("hood"):
-        from neighborhoods import nearest
+        from neighborhoods import HOODS, nearest
 
-        doc["hood"] = nearest(doc["city"], doc["lat"], doc["lon"])
+        area = await geocode.reverse(doc["lat"], doc["lon"])
+        known = {name.lower(): name for name, _, _ in HOODS.get(doc["city"], [])}
+        # Prefer our spelling when it's somewhere we already name.
+        doc["hood"] = known.get(area.lower(), area) or nearest(doc["city"], doc["lat"], doc["lon"])
 
     photo = await photos.find_photo(photos.photo_query_for(doc))
     if photo:

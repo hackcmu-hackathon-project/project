@@ -12,11 +12,13 @@ from .models import CITY_NAMES
 ENDPOINT = "https://nominatim.openstreetmap.org/search"
 UA = "Rove/1.0 (hackathon project; https://github.com/hackcmu-hackathon-project/project)"
 
-#: Rough bounding boxes, so "Main Street" lands in the right city.
+#: Metro-wide boxes, not city limits: people rank things across the whole area —
+#: the South Bay, Jersey City, the Allegheny suburbs — and a search that can't
+#: reach them is a search that looks broken.
 VIEWBOX = {
-    "sf": "-122.55,37.70,-122.35,37.84",
-    "nyc": "-74.26,40.49,-73.70,40.92",
-    "pgh": "-80.10,40.36,-79.86,40.50",
+    "sf": "-122.75,37.05,-121.70,38.15",   # Bay Area: San Jose to Napa, coast to Livermore
+    "nyc": "-74.45,40.45,-73.30,41.10",    # the boroughs plus Hudson County, Westchester, western Long Island
+    "pgh": "-80.35,40.20,-79.60,40.70",    # Allegheny County and its edges
 }
 
 
@@ -66,6 +68,31 @@ def _label(props: dict) -> str:
             seen.add(part)
             out.append(part)
     return ", ".join(out)
+
+
+async def reverse(lat: float, lon: float) -> str:
+    """The name of the area a point sits in — a neighborhood if OSM knows one,
+    otherwise the town. Used when somewhere is outside our own map of a city."""
+    try:
+        async with httpx.AsyncClient(timeout=10, headers={"User-Agent": UA}) as client:
+            response = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"lat": lat, "lon": lon, "format": "json", "zoom": 14},
+            )
+            response.raise_for_status()
+            payload = response.json()
+            address = payload.get("address", {})
+    except (httpx.HTTPError, ValueError):
+        return ""
+    for key in (
+        "neighbourhood", "suburb", "quarter", "city_district",
+        "town", "village", "hamlet", "municipality", "city",
+    ):
+        if address.get(key):
+            return address[key]
+    # Nominatim sometimes names the place but files it under a type we did not
+    # think to ask for.
+    return payload.get("name") or ""
 
 
 async def suggest(query: str, city: str, limit: int = 6) -> list[dict]:
