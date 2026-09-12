@@ -31,9 +31,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "server": "npm --prefix server start",
-    "server:dev": "npm --prefix server run dev",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "api": "cd backend && .venv/bin/uvicorn app.main:app --port 8010 --reload",
+    "db": "cd backend && docker compose up -d",
+    "gen:seed": "node scripts/gen-seed.mjs"
   },
   "private": true
 }

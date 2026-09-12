@@ -17,12 +17,13 @@ import { Profile } from './src/screens/Profile';
 import { Detail } from './src/screens/Detail';
 import { Rank } from './src/screens/Rank';
 import { SignIn } from './src/screens/SignIn';
+import { People } from './src/screens/People';
 
-type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number };
+type Screen = { name: TabKey } | { name: 'detail'; id: number } | { name: 'add'; seedId?: number } | { name: 'people' };
 
 function Shell() {
   const insets = useSafeAreaInsets();
-  const { setCity } = useStore();
+  const { setCity, refresh } = useStore();
   const [tab, setTab] = useState<TabKey>('feed');
   const [screen, setScreen] = useState<Screen>({ name: 'feed' });
   const [rankKey, setRankKey] = useState(0);
@@ -41,10 +42,19 @@ function Shell() {
     body = <Feed top={top} onOpen={openDetail} />;
   } else if (screen.name === 'list') {
     body = <Lists top={top} onOpen={openDetail} onRank={(id) => startRank(id)} />;
+  } else if (screen.name === 'people') {
+    // Following someone changes the feed, so re-pull on the way out.
+    body = <People top={top} onClose={() => { refresh(); goTab('profile'); }} />;
   } else if (screen.name === 'explore') {
     body = <Explore top={top} onOpen={openDetail} />;
   } else {
-    body = <Profile top={top} onOpenCity={(c: CityKey) => { setCity(c); goTab('list'); }} />;
+    body = (
+      <Profile
+        top={top}
+        onOpenCity={(c: CityKey) => { setCity(c); goTab('list'); }}
+        onFindPeople={() => setScreen({ name: 'people' })}
+      />
+    );
   }
 
   return (

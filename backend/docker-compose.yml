@@ -1,0 +1,11 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: rove-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - rove-mongo-data:/data/db
+
+volumes:
+  rove-mongo-data:

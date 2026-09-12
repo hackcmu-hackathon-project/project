@@ -12,7 +12,8 @@ type Ctx = {
   token: string | null;
   loading: boolean;
   ready: boolean;
-  signIn: () => void;
+  /** `signup` opens Auth0's Universal Login on the sign-up tab. */
+  signIn: (mode?: 'login' | 'signup') => void;
   signInAsGuest: () => void;
   signOut: () => void;
   configured: boolean;
@@ -58,6 +59,9 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
 
 function Auth0Provider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  // Auth0 chooses the login vs sign-up tab from `screen_hint`, which is baked
+  // into the request, so switching modes means rebuilding the request first.
+  const [pending, setPending] = useState<'login' | 'signup' | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -71,10 +75,19 @@ function Auth0Provider({ children }: { children: React.ReactNode }) {
       responseType: 'code',
       scopes: ['openid', 'profile', 'email', 'offline_access'],
       usePKCE: true,
-      extraParams: AUTH0_AUDIENCE ? { audience: AUTH0_AUDIENCE } : {},
+      extraParams: {
+        ...(AUTH0_AUDIENCE ? { audience: AUTH0_AUDIENCE } : {}),
+        ...(pending === 'signup' ? { screen_hint: 'signup' } : {}),
+      },
     },
     discovery
   );
+
+  useEffect(() => {
+    if (!pending || !request) return;
+    setPending(null);
+    promptAsync();
+  }, [pending, request, promptAsync]);
 
   useEffect(() => {
     if (result?.type !== 'success' || !discovery || !request?.codeVerifier) return;
@@ -109,7 +122,7 @@ function Auth0Provider({ children }: { children: React.ReactNode }) {
       loading,
       ready: Boolean(discovery),
       configured: true,
-      signIn: () => promptAsync(),
+      signIn: (mode: 'login' | 'signup' = 'login') => setPending(mode),
       signInAsGuest: () => setUser(DEMO_USER),
       signOut: () => {
         setUser(null);
@@ -122,7 +135,7 @@ function Auth0Provider({ children }: { children: React.ReactNode }) {
         }
       },
     }),
-    [user, token, loading, discovery, promptAsync, redirectUri]
+    [user, token, loading, discovery, redirectUri]
   );
 
   return <C.Provider value={value}>{children}</C.Provider>;

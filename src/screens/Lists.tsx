@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { colors } from '../theme';
-import { CITIES } from '../data';
+import { CITIES, meta } from '../data';
 import { CityChips, Eyebrow, Hatch, Row, ScoreDot, T, Touch } from '../components/ui';
 import { useStore } from '../store';
 
@@ -26,7 +26,7 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
           <Hatch style={{ width: 52, height: 52, borderRadius: 10 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <T s="med" size={15} style={{ lineHeight: 19 }}>{r.title}</T>
-            <T s="soft" size={12} style={{ marginTop: 3 }}>{r.hood} · {r.stops} stops · {r.hours}h</T>
+            <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(r)}</T>
           </View>
           <ScoreDot score={r.score} size={38} />
         </Touch>
@@ -45,7 +45,7 @@ export function Lists({ top, onOpen, onRank }: { top: number; onOpen: (id: numbe
           <Hatch style={{ width: 52, height: 52, borderRadius: 10, opacity: 0.6 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <T s="med" size={15} style={{ lineHeight: 19 }}>{w.title}</T>
-            <T s="soft" size={12} style={{ marginTop: 3 }}>{w.hood} · {w.stops} stops · {w.hours}h</T>
+            <T s="soft" size={12} style={{ marginTop: 3 }}>{meta(w)}</T>
           </View>
           <T s="med" size={13} c={colors.plum}>Rank</T>
         </Touch>
