@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Platform, StatusBar as RNStatusBar, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts, InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
 import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-google-fonts/geist';
 
@@ -169,6 +170,7 @@ export default function App() {
   });
   if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <Frame>
@@ -179,5 +181,6 @@ export default function App() {
         </ErrorBoundary>
       </Frame>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
