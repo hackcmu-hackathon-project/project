@@ -1,3 +1,5 @@
+import inspect
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from .config import get_settings
@@ -31,6 +33,14 @@ async def ensure_indexes() -> None:
 
 async def close_client() -> None:
     global _client
-    if _client is not None:
-        _client.close()
-        _client = None
+    client = _client
+    # Clear the shared reference before closing so a failed close cannot leave
+    # a client that future requests might accidentally reuse.
+    _client = None
+    if client is not None:
+        result = client.close()
+        # Motor closes synchronously, but accepting an awaitable here keeps the
+        # helper friendly to small async test doubles without changing the
+        # production Motor lifecycle.
+        if inspect.isawaitable(result):
+            await result

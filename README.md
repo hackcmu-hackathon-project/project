@@ -23,7 +23,7 @@ Three processes. Mongo and the API first, then the app.
 cd backend && docker compose up -d
 
 # 2. API  (http://localhost:8010, docs at /docs)
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 cp .env.example .env
 .venv/bin/python seed.py --demo-user --dev-user --reset
 .venv/bin/uvicorn app.main:app --port 8010 --reload
@@ -33,6 +33,10 @@ cd .. && npm install
 cp .env.example .env
 npm run web        # a phone frame appears on wide screens
 ```
+
+Run the backend test suite from the backend directory with `.venv/bin/pytest`.
+`backend/pytest.ini` adds the app directory to the Python path and discovers tests
+under `backend/tests`.
 
 Auth0 is optional. With `AUTH0_DOMAIN` unset the API runs **open in dev mode** and
 attributes every request to a single local user, so you can build without it. If the
@@ -97,11 +101,35 @@ tier too.
 
 ## Auth0 setup
 
-1. Applications → Create → **Native**. Put the domain and client ID in `.env`.
-2. Allowed Callback + Logout URLs: `rove://*` and `http://localhost:8081`.
-3. APIs → create one with identifier `https://rove.api` (RS256). Use that value for
-   both `EXPO_PUBLIC_AUTH0_AUDIENCE` and the backend's `AUTH0_AUDIENCE`, and set
-   `AUTH0_DOMAIN` in `backend/.env` to switch the API from dev mode to real verification.
+The app uses Auth0's authorization-code flow with PKCE. The native app is a public
+client: keep its client ID in the root `.env`, and never add a client secret to the
+Expo app or to this flow.
+
+1. Applications → Create → **Native**. Set `EXPO_PUBLIC_AUTH0_DOMAIN` and
+   `EXPO_PUBLIC_AUTH0_CLIENT_ID` in the root `.env` (copy the committed root
+   `.env.example` first).
+2. In the Auth0 application's Allowed Callback URLs and Allowed Logout URLs, add
+   the exact native callback `rove://` and the web callback `http://localhost:8081`.
+   `src/auth.tsx` calls `AuthSession.makeRedirectUri({ scheme: 'rove' })`; a
+   development or production native build therefore returns `rove://`. Build the
+   app after changing `expo.scheme` in `app.json`. Expo Go uses a temporary `exp://`
+   URL, so use a development build when registering a stable native callback.
+3. APIs → create one with identifier `https://rove.api` and signing algorithm RS256.
+   Use that identifier for both `EXPO_PUBLIC_AUTH0_AUDIENCE` in the root `.env` and
+   `AUTH0_AUDIENCE` in `backend/.env`. Set `AUTH0_DOMAIN` in `backend/.env` to turn
+   on access-token verification; leave it blank only for local open-dev mode.
+
+The backend reads `MONGODB_URI`, `MONGODB_DB`, `AUTH0_DOMAIN`, and `AUTH0_AUDIENCE`
+from `backend/.env.example`. These names are the backend contract and are shared by
+the API configuration and its deployment environment.
+
+## Migration compatibility
+
+The existing Motor-backed Rove API remains the single backend. Existing
+`GET /api/me`, profile documents, rankings, and follow relationships remain in place
+and keep their Auth0 `sub` identifiers, so existing MongoDB data is preserved. The
+newer authentication and backend primitives are integrated into those routes rather
+than deployed as a second backend; no data migration is required.
 
 ## Design
 

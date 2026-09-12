@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from .models import PublicUser
 
@@ -28,17 +29,56 @@ def default_handle(name: str, email: str | None, sub: str) -> str:
 
 
 async def ensure_handle(db: AsyncIOMotorDatabase, sub: str, name: str, email: str | None) -> str:
+    """Return the user's stable handle, claiming a new one atomically.
+
+    The handle index is unique, so the final update is the arbiter when two
+    first requests race. Existing documents are claimed with a conditional
+    update; a new document is left for ``routes._touch_user`` to create with
+    its complete profile and timestamps.
+    """
     existing = await db.users.find_one({"_id": sub}, {"handle": 1})
     if existing and existing.get("handle"):
         return existing["handle"]
 
     candidate = default_handle(name, email, sub)
-    handle = candidate
     n = 1
-    while await db.users.find_one({"handle": handle, "_id": {"$ne": sub}}, {"_id": 1}):
-        n += 1
-        handle = f"{candidate}{n}"
-    return handle
+    while True:
+        handle = candidate if n == 1 else f"{candidate}{n}"
+        if await db.users.find_one({"handle": handle, "_id": {"$ne": sub}}, {"_id": 1}):
+            n += 1
+            continue
+
+        try:
+            # Do not upsert here: _touch_user owns the complete user-document
+            # insert, including created_at, color, and bio.
+            await db.users.update_one(
+                {
+                    "_id": sub,
+                    "$or": [
+                        {"handle": {"$exists": False}},
+                        {"handle": None},
+                        {"handle": ""},
+                    ],
+                },
+                {"$set": {"handle": handle}},
+            )
+        except DuplicateKeyError:
+            # Another request may have claimed this candidate between the
+            # availability check and update. If it was this user, use the
+            # winner; otherwise try the next deterministic suffix.
+            existing = await db.users.find_one({"_id": sub}, {"handle": 1})
+            if existing and existing.get("handle"):
+                return existing["handle"]
+            n += 1
+            continue
+
+        existing = await db.users.find_one({"_id": sub}, {"handle": 1})
+        if existing and existing.get("handle"):
+            return existing["handle"]
+
+        # The user does not exist yet. The caller will use this candidate in
+        # its atomic upsert and retry if the unique index reports a collision.
+        return handle
 
 
 async def follow(db: AsyncIOMotorDatabase, follower: str, followee: str) -> None:

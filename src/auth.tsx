@@ -102,16 +102,27 @@ function Auth0Provider({ children }: { children: React.ReactNode }) {
       discovery
     )
       .then((res) => {
+        if (!res.accessToken) {
+          throw new Error('Auth0 did not return an access token');
+        }
         const claims = decodeJwt(res.idToken ?? '');
-        setToken(res.accessToken ?? res.idToken ?? null);
+        if (!claims.sub) {
+          throw new Error('Auth0 did not return an ID token with a subject');
+        }
+        setToken(res.accessToken);
         setUser({
-          sub: claims.sub ?? 'unknown',
+          sub: claims.sub,
           name: claims.name ?? claims.nickname ?? claims.email ?? 'Traveler',
           email: claims.email,
           picture: claims.picture,
         });
       })
-      .catch(() => {})
+      .catch(() => {
+        // An ID token identifies the user but cannot authorize API requests.
+        // Keep the Auth0 session closed unless the code exchange returned an API token.
+        setToken(null);
+        setUser(null);
+      })
       .finally(() => setLoading(false));
   }, [result, discovery, request?.codeVerifier, redirectUri]);
 
@@ -123,7 +134,12 @@ function Auth0Provider({ children }: { children: React.ReactNode }) {
       ready: Boolean(discovery),
       configured: true,
       signIn: (mode: 'login' | 'signup' = 'login') => setPending(mode),
-      signInAsGuest: () => setUser(DEMO_USER),
+      signInAsGuest: () => {
+        // Guest mode belongs to the unconfigured local-dev provider. Never
+        // expose an Auth0 user without the access token the API requires.
+        setUser(null);
+        setToken(null);
+      },
       signOut: () => {
         setUser(null);
         setToken(null);

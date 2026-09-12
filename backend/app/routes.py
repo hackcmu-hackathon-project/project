@@ -2,23 +2,24 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 from . import people, ranking
 from .auth import Principal, current_user
 from .db import get_db
 from .models import (
+    Category,
     City,
     FeedEntry,
     Item,
     ItemCreate,
-    Category,
     NoteUpdate,
     ProfileUpdate,
     PublicUser,
     RankCompare,
+    Ranking,
     RankStart,
     RankState,
-    Ranking,
 )
 
 router = APIRouter(prefix="/api")
@@ -49,23 +50,62 @@ def _ago(when: datetime | None) -> str:
 
 
 async def _touch_user(db: AsyncIOMotorDatabase, user: Principal) -> dict:
-    """First call for a given Auth0 sub is effectively the sign-up."""
-    handle = await people.ensure_handle(db, user.sub, user.name, user.email)
-    await db.users.update_one(
-        {"_id": user.sub},
-        {
-            "$set": {
-                "name": user.name,
-                "email": user.email,
-                "picture": user.picture,
-                "handle": handle,
-                "last_seen_at": _now(),
-            },
-            "$setOnInsert": {"created_at": _now(), "color": "#8a2d6e", "bio": ""},
-        },
-        upsert=True,
+    """First call for a given Auth0 sub is effectively the sign-up.
+
+    Auth0 access tokens do not always contain every profile claim. Only values
+    that are actually available are refreshed, which leaves local profile
+    edits intact when a later token omits email, picture, or a display name.
+    """
+
+    name = getattr(user, "name", None)
+    email = getattr(user, "email", None)
+    picture = getattr(user, "picture", None)
+
+    profile: dict[str, str] = {}
+    if isinstance(email, str) and email.strip():
+        profile["email"] = email
+    if isinstance(picture, str) and picture.strip():
+        profile["picture"] = picture
+
+    # current_user uses the email or "Traveler" as a fallback when Auth0 did
+    # not send a name claim. Keep the useful name for a new document, while
+    # making the local name insert-only so a profile edit remains authoritative
+    # on subsequent /api/me calls.
+    display_name = (
+        name
+        if isinstance(name, str) and name.strip() and name != email and name != "Traveler"
+        else "Traveler"
     )
-    return await db.users.find_one({"_id": user.sub})
+
+    # The unique handle index resolves races between new users whose derived
+    # handles collide. Retry after a collision so each request returns the
+    # document that won its handle claim.
+    for _ in range(8):
+        handle = await people.ensure_handle(db, user.sub, name or "", email)
+        now = _now()
+        values = {**profile, "last_seen_at": now}
+        set_on_insert = {
+            "created_at": now,
+            "color": "#8a2d6e",
+            "bio": "",
+            "handle": handle,
+            "name": display_name,
+        }
+        try:
+            await db.users.update_one(
+                {"_id": user.sub},
+                {"$set": values, "$setOnInsert": set_on_insert},
+                upsert=True,
+            )
+        except DuplicateKeyError:
+            continue
+
+        document = await db.users.find_one({"_id": user.sub})
+        if document is None:
+            raise RuntimeError("MongoDB upsert did not return the user document")
+        return document
+
+    raise RuntimeError("Could not claim a unique user handle after several retries")
 
 
 # --------------------------------------------------------------------------- me
@@ -79,7 +119,7 @@ async def me(user: Principal = Depends(current_user), db: AsyncIOMotorDatabase =
         counts[city] = len(await ranking.ranked_items(db, user.sub, city))
     return {
         "sub": doc["_id"],
-        "name": doc["name"],
+        "name": doc.get("name") or getattr(user, "name", None) or "Traveler",
         "handle": doc.get("handle"),
         "email": doc.get("email"),
         "picture": doc.get("picture"),
@@ -97,13 +137,23 @@ async def update_me(
     user: Principal = Depends(current_user),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
+    # Keep PATCH useful as the first authenticated request as well. This also
+    # gives the subsequent profile update the same complete user document as
+    # GET /api/me.
+    await _touch_user(db, user)
     patch = {k: v for k, v in body.model_dump(exclude_none=True).items()}
     if "handle" in patch:
         taken = await db.users.find_one({"handle": patch["handle"], "_id": {"$ne": user.sub}}, {"_id": 1})
         if taken:
             raise HTTPException(status.HTTP_409_CONFLICT, "That handle is taken")
     if patch:
-        await db.users.update_one({"_id": user.sub}, {"$set": patch})
+        try:
+            await db.users.update_one({"_id": user.sub}, {"$set": patch})
+        except DuplicateKeyError as exc:
+            # The availability check above and the update are separate Mongo
+            # operations, so a concurrent profile edit can still win the
+            # unique handle index.
+            raise HTTPException(status.HTTP_409_CONFLICT, "That handle is taken") from exc
     return await db.users.find_one({"_id": user.sub})
 
 

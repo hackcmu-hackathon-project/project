@@ -1,3 +1,4 @@
+import inspect
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,10 +10,24 @@ from .routes import router
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    await ensure_indexes()
-    yield
-    await close_client()
+async def lifespan(app: FastAPI):
+    try:
+        await ensure_indexes()
+        yield
+    finally:
+        # Auth validation may own an HTTP client of its own. Keep Mongo cleanup
+        # in a nested finally so one resource's shutdown cannot strand the
+        # other when startup or application shutdown fails.
+        validator = getattr(app.state, "auth0_validator", None)
+        try:
+            if validator is not None:
+                result = validator.close()
+                if inspect.isawaitable(result):
+                    await result
+        finally:
+            # Index creation can fail during startup, and application shutdown
+            # can also be triggered by an exception inside the lifespan body.
+            await close_client()
 
 
 settings = get_settings()
