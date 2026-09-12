@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     mongodb_db: str = "rove"
 
     auth0_domain: str = ""
-    auth0_audience: str = "https://rove.api"
+    #: API identifier, when one is registered in Auth0. Blank means the app
+    #: sends ID tokens instead, verified against auth0_client_id.
+    auth0_audience: str = ""
+    auth0_client_id: str = ""
 
     port: int = 8000
     cors_origins: str = "*"
@@ -21,6 +24,11 @@ class Settings(BaseSettings):
     def auth_enabled(self) -> bool:
         """No Auth0 domain means local dev mode: every caller is the dev user."""
         return bool(self.auth0_domain)
+
+    @property
+    def allowed_audiences(self) -> list[str]:
+        """Every `aud` we will accept: the API identifier, the client ID, or both."""
+        return [a for a in (self.auth0_audience, self.auth0_client_id) if a]
 
     @property
     def is_production(self) -> bool:
